@@ -4,23 +4,37 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-This repo holds a Telegram reminder bot that is specified and planned but not built. There is no application code yet, so the commands below won't work until it exists. Replace this note and confirm the commands once they do.
+This repo holds a Telegram reminder bot. The code and automated tests are written, but it hasn't been run against a real bot or deployed. See the unchecked tasks in `specs/001-telegram-reminder-bot/tasks.md`.
 
-## Planned stack and commands
+## Stack and commands
 
 Python 3.14, aiogram, SQLite, managed with `uv`. Reasoning is in `specs/001-telegram-reminder-bot/research.md`.
 
 ```bash
 uv sync
 uv run ruff check .
+uv run ruff format --check .
 uv run pytest
 uv run pytest tests/unit/test_schedule.py::test_monthly_short_months
-uv run python -m reminder_bot
+uv run --env-file .env python -m reminder_bot
+docker compose up --build
 ```
 
-## Planned architecture
+Copy `.env.example` to `.env` to run the bot. Nothing loads `.env` automatically, which is why the run command passes it.
 
-One process runs a Telegram long-polling handler and a scheduler loop over one SQLite file. Three rules span several files:
+## Architecture
+
+One process in `src/reminder_bot/` runs a Telegram long-polling handler (`bot/`) and a scheduler loop (`scheduler/`) over one SQLite file (`storage/`). `domain/` holds the pure date and input rules and depends on nothing else.
+
+Tests drive the real dispatcher through a fake Telegram session and a settable clock (`tests/conftest.py`), against a real temporary database.
+
+Rules that span several files:
+
+- `bot/routers/start.py` must stay first in `bot/app.py`, so a command works in the middle of a flow, and `fallback.py` last.
+- All SQL lives in `storage/repositories.py`. A claim in the scheduler must happen just before sending, not when a send is queued, or a crash would mark unsent messages as sent.
+- Reminder text must never reach the logs. `aiosqlite` is held at WARNING in `storage/db.py` because its DEBUG output includes SQL values.
+- All bot text goes in both `i18n/en.py` and `i18n/uk.py`, with matching keys and placeholders.
+- Bot messages are sent with no parse mode, so reminder text needs no escaping.
 
 - Next sends are always calculated from a message's original start date, never from the previous send. Otherwise a monthly message on the 31st drifts to the 28th for good.
 - The scheduler commits a delivery record and the schedule change before calling Telegram, and never resends an unknown outcome, because duplicates are forbidden (FR-010).

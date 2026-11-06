@@ -55,11 +55,14 @@ A unique index on message and scheduled time blocks a second claim.
 | Success | Record `sent` |
 | 429 flood limit | Status `retrying`, with `next_attempt_at` from the returned `retry_after` |
 | Connection could not be made, or a 502, 503 or 504 | Status `retrying`, with backoff up to 5 minutes between attempts and no overall time limit |
-| 500 or read timeout (the outcome is unknown) | Record `unknown`, don't retry |
+| 401 unauthorized (the bot token needs fixing, and nothing was delivered) | Status `retrying`, with the same backoff |
+| 500, read timeout or dropped connection (the outcome is unknown) | Record `unknown`, don't retry |
 | 403 blocked | Set the user's `blocked_at` and handle it as described under Blocked users |
 | Other 4xx | Record `failed` and log it; a one-time message shows as "Not delivered" |
 | Process restarts with a record still `sending` | Mark it `unknown`, don't resend |
 | Process restarts with a record `retrying` | Resume it at `next_attempt_at` |
+
+**Telling errors apart**: aiogram raises the same error for every 5xx and can't parse a gateway's HTML error page, so `bot/session.py` checks the HTTP status first. For network errors, aiogram puts the aiohttp error's class name in the message: only `ClientConnector*` and `ClientProxyConnection*` errors mean the connection was never made.
 
 **Retries**: Each loop also picks up `retrying` records that are due, skipping blocked users. Because this state is saved in the database, retries survive restarts, and shutdown doesn't wait for them. A retry sends the message's current text, and a removed message's retry is deleted with it. If a recurring message comes due again while an earlier send is still retrying, its schedule advances without a new delivery record, so it's sent once after an outage.
 

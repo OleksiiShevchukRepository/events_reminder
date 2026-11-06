@@ -44,6 +44,7 @@ Stores no message text.
 | `sent_at` | timestamp, nullable | When Telegram accepted it. |
 | `status` | text | `sending`, `retrying`, `sent`, `failed`, `unknown` or `blocked`. |
 | `next_attempt_at` | timestamp, nullable | When to retry. Set only while `retrying`. |
+| `attempts` | integer | Send attempts so far. Sets the backoff between retries. |
 | `error` | text, nullable | Short error code, never message content. |
 | `created_at` | timestamp | Used for the 90-day cleanup. |
 

@@ -1,6 +1,6 @@
 # Quickstart: Telegram Reminder Bot
 
-This guide shows how to run the bot and prove it works end to end. The application doesn't exist yet, so these commands will only work after implementation.
+This guide shows how to run the bot and prove it works end to end.
 
 ## Prerequisites
 
@@ -42,7 +42,7 @@ uv run pytest tests/unit/test_schedule.py::test_monthly_short_months
 ## Run the bot
 
 ```bash
-uv run python -m reminder_bot
+uv run --env-file .env python -m reminder_bot
 ```
 
 Or in a container, as it would run on a server:

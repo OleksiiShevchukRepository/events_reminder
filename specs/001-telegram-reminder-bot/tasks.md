@@ -26,10 +26,10 @@ All paths are relative to the repository root.
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create `pyproject.toml` with `requires-python = ">=3.14,<3.15"`, dependencies `aiogram>=3.31,<4`, `aiosqlite>=0.22,<1`, `tzdata>=2026.6`, dev dependencies `pytest>=9.2`, `pytest-asyncio>=1.4`, `ruff>=0.17`, a `src/` layout package named `reminder_bot`, pytest `asyncio_mode = "auto"` and Ruff lint and format settings, then run `uv sync` to create `uv.lock`
-- [ ] T002 Create the package and test folders from plan.md with empty `__init__.py` files: `src/reminder_bot/` with `domain/`, `storage/`, `bot/`, `bot/routers/`, `scheduler/`, `i18n/`, and `tests/` with `unit/`, `integration/`, `contract/`
-- [ ] T003 [P] Create `.gitignore` covering `.env`, `*.db`, `*.db-wal`, `*.db-shm`, `.venv/`, `__pycache__/`, `.pytest_cache/`, `.ruff_cache/` and local backups
-- [ ] T004 [P] Create `.env.example` with the variables in contracts/runtime-config.md, with `BOT_TOKEN` left blank
+- [X] T001 Create `pyproject.toml` with `requires-python = ">=3.14,<3.15"`, dependencies `aiogram>=3.31,<4`, `aiosqlite>=0.22,<1`, `tzdata>=2026.6`, dev dependencies `pytest>=9.2`, `pytest-asyncio>=1.4`, `ruff>=0.17`, a `src/` layout package named `reminder_bot`, pytest `asyncio_mode = "auto"` and Ruff lint and format settings, then run `uv sync` to create `uv.lock`
+- [X] T002 Create the package and test folders from plan.md with empty `__init__.py` files: `src/reminder_bot/` with `domain/`, `storage/`, `bot/`, `bot/routers/`, `scheduler/`, `i18n/`, and `tests/` with `unit/`, `integration/`, `contract/`
+- [X] T003 [P] Create `.gitignore` covering `.env`, `*.db`, `*.db-wal`, `*.db-shm`, `.venv/`, `__pycache__/`, `.pytest_cache/`, `.ruff_cache/` and local backups
+- [X] T004 [P] Create `.env.example` with the variables in contracts/runtime-config.md, with `BOT_TOKEN` left blank
 
 ---
 
@@ -41,30 +41,30 @@ All paths are relative to the repository root.
 
 ### Core date and input rules
 
-- [ ] T005 [P] Implement `Clock` protocol, `SystemClock` and a settable `FixedClock`, all returning timezone-aware UTC times, in `src/reminder_bot/clock.py`
-- [ ] T006 [P] Write failing schedule tests in `tests/unit/test_schedule.py`: every worked example in data-model.md (include a test named `test_monthly_short_months`), first send strictly after a given moment, monthly return to the original day, yearly 29 February, daily, weekly and interval sequences, a skipped Kyiv time (03:30 on 28.03.2027 gives 04:00) and a repeated Kyiv time (03:30 on 31.10.2027 gives the first occurrence only), and a full year of dates for each recurrence (SC-005)
-- [ ] T007 Implement `first_send()` and `next_after()` per the Schedule rules in data-model.md, using `ZoneInfo("Europe/Kyiv")` and always calculating from the start date, in `src/reminder_bot/domain/schedule.py`, until T006 passes
-- [ ] T008 [P] Write failing parsing tests in `tests/unit/test_parsing.py`: valid and invalid dates (`7.11.2026`, `07.11.2026`, `31.02.2027`, wrong format, after 31.12.2100), times (`14:45`, `9:05`, `25:70`), intervals (1, 3650, 0, 3651, `1.5`, text), text (blank, exactly and over 4,096 UTF-16 code units, including emoji), and date and time in the past in Kyiv time, including earlier today
-- [ ] T009 Implement pure parsing and validation functions that return a value or an error key, in `src/reminder_bot/domain/parsing.py`, until T008 passes
+- [X] T005 [P] Implement `Clock` protocol, `SystemClock` and a settable `FixedClock`, all returning timezone-aware UTC times, in `src/reminder_bot/clock.py`
+- [X] T006 [P] Write failing schedule tests in `tests/unit/test_schedule.py`: every worked example in data-model.md (include a test named `test_monthly_short_months`), first send strictly after a given moment, monthly return to the original day, yearly 29 February, daily, weekly and interval sequences, a skipped Kyiv time (03:30 on 28.03.2027 gives 04:00) and a repeated Kyiv time (03:30 on 31.10.2027 gives the first occurrence only), and a full year of dates for each recurrence (SC-005)
+- [X] T007 Implement `first_send()` and `next_after()` per the Schedule rules in data-model.md, using `ZoneInfo("Europe/Kyiv")` and always calculating from the start date, in `src/reminder_bot/domain/schedule.py`, until T006 passes
+- [X] T008 [P] Write failing parsing tests in `tests/unit/test_parsing.py`: valid and invalid dates (`7.11.2026`, `07.11.2026`, `31.02.2027`, wrong format, after 31.12.2100), times (`14:45`, `9:05`, `25:70`), intervals (1, 3650, 0, 3651, `1.5`, text), text (blank, exactly and over 4,096 UTF-16 code units, including emoji), and date and time in the past in Kyiv time, including earlier today
+- [X] T009 Implement pure parsing and validation functions that return a value or an error key, in `src/reminder_bot/domain/parsing.py`, until T008 passes
 
 ### Configuration and storage
 
-- [ ] T010 [P] Implement environment loading per contracts/runtime-config.md, with a clear startup error if `BOT_TOKEN` is missing or the database location can't be written, in `src/reminder_bot/config.py`
-- [ ] T011 [P] Create the `users`, `scheduled_messages` and `deliveries` tables, cascading foreign keys, the message and delivery indexes and the partial unique index from data-model.md in `src/reminder_bot/storage/migrations/0001_initial.sql`
-- [ ] T012 Write failing storage tests in `tests/integration/test_db.py`: migrations apply once and are tracked by `PRAGMA user_version`, WAL mode and foreign keys are on, deleting a user cascades, and a second non-`blocked` delivery for the same message and time is rejected
-- [ ] T013 Implement connection setup (WAL, foreign keys, busy timeout) and the migration runner in `src/reminder_bot/storage/db.py` until T012 passes
-- [ ] T014 Implement user queries (get or create, set language, set or clear `blocked_at`) in `src/reminder_bot/storage/repositories.py`
+- [X] T010 [P] Implement environment loading per contracts/runtime-config.md, with a clear startup error if `BOT_TOKEN` is missing or the database location can't be written, in `src/reminder_bot/config.py`
+- [X] T011 [P] Create the `users`, `scheduled_messages` and `deliveries` tables, cascading foreign keys, the message and delivery indexes and the partial unique index from data-model.md in `src/reminder_bot/storage/migrations/0001_initial.sql`
+- [X] T012 Write failing storage tests in `tests/integration/test_db.py`: migrations apply once and are tracked by `PRAGMA user_version`, WAL mode and foreign keys are on, deleting a user cascades, and a second non-`blocked` delivery for the same message and time is rejected
+- [X] T013 Implement connection setup (WAL, foreign keys, busy timeout) and the migration runner in `src/reminder_bot/storage/db.py` until T012 passes
+- [X] T014 Implement user queries (get or create, set language, set or clear `blocked_at`) in `src/reminder_bot/storage/repositories.py`
 
 ### Languages and bot shell
 
-- [ ] T015 [P] Write a failing test that `en` and `uk` have identical keys and placeholders in `tests/unit/test_i18n.py`
-- [ ] T016 Implement `translate(language, key, **values)` in `src/reminder_bot/i18n/__init__.py` with start, help, menu, cancel and "no longer available" text in `src/reminder_bot/i18n/en.py` and `src/reminder_bot/i18n/uk.py`, until T015 passes
-- [ ] T017 Create shared test fixtures in `tests/conftest.py`: temporary migrated database, `FixedClock`, and a fake aiogram session that records outgoing API calls and can return chosen errors
-- [ ] T018 Write failing tests in `tests/contract/test_start.py`: `/start` registers a new user, `uk` gives Ukrainian and anything else English, the stored language isn't overwritten later, `/help` mentions Kyiv time, `/cancel` ends a flow, and group chat updates are ignored and store nothing
-- [ ] T019 Implement middleware that ignores non-private updates, gets or creates the user and provides their language to handlers in `src/reminder_bot/bot/middleware.py`
-- [ ] T020 Add the main menu keyboard and callback data formats from contracts/bot-interface.md in `src/reminder_bot/bot/keyboards.py`
-- [ ] T021 Implement `/start`, `/help`, `/cancel` and a shared handler for commands sent during a flow in `src/reminder_bot/bot/routers/start.py`, until T018 passes
-- [ ] T022 Implement the entry point with stdout logging, migrations, long polling with `allowed_updates` of `message`, `callback_query` and `my_chat_member`, SIGTERM handling and handler timing logs in `src/reminder_bot/__main__.py`
+- [X] T015 [P] Write a failing test that `en` and `uk` have identical keys and placeholders in `tests/unit/test_i18n.py`
+- [X] T016 Implement `translate(language, key, **values)` in `src/reminder_bot/i18n/__init__.py` with start, help, menu, cancel and "no longer available" text in `src/reminder_bot/i18n/en.py` and `src/reminder_bot/i18n/uk.py`, until T015 passes
+- [X] T017 Create shared test fixtures in `tests/conftest.py`: temporary migrated database, `FixedClock`, and a fake aiogram session that records outgoing API calls and can return chosen errors
+- [X] T018 Write failing tests in `tests/contract/test_start.py`: `/start` registers a new user, `uk` gives Ukrainian and anything else English, the stored language isn't overwritten later, `/help` mentions Kyiv time, `/cancel` ends a flow, and group chat updates are ignored and store nothing
+- [X] T019 Implement middleware that ignores non-private updates, gets or creates the user and provides their language to handlers in `src/reminder_bot/bot/middleware.py`
+- [X] T020 Add the main menu keyboard and callback data formats from contracts/bot-interface.md in `src/reminder_bot/bot/keyboards.py`
+- [X] T021 Implement `/start`, `/help`, `/cancel` and a shared handler for commands sent during a flow in `src/reminder_bot/bot/routers/start.py`, until T018 passes
+- [X] T022 Implement the entry point with stdout logging, migrations, long polling with `allowed_updates` of `message`, `callback_query` and `my_chat_member`, SIGTERM handling and handler timing logs in `src/reminder_bot/__main__.py`
 
 **Checkpoint**: The bot starts, answers `/start`, and has tested date and input rules
 
@@ -80,24 +80,24 @@ All paths are relative to the repository root.
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T023 [P] [US1] Write create flow tests in `tests/contract/test_create_flow.py`: full flow for each recurrence type, Every N days asks for an interval, invalid input repeats only its step, Cancel saves nothing, non-text input is rejected, past dates are rejected for every recurrence, confirmation shows "Kyiv time" and the next send, and the limit of 100 is enforced at flow start and at save, with completed messages not counted
-- [ ] T024 [P] [US1] Write dispatcher tests in `tests/integration/test_dispatcher.py`: recurring messages advance, one-time messages stay active until their delivery ends and then complete, no second claim for the same send, missed sends collapse into one, a note goes first when more than 1 minute late and not otherwise, text is sent with no parse mode, each row of the failure table in research.md, `retrying` sends continue past 1 hour and resume after a restart, a recurring message that comes due during a retry adds no new delivery, leftover `sending` records become `unknown` and aren't resent, blocked users are skipped, and a message edited or removed at the moment it's due is either sent in its previous form or handled under the new values, never both
-- [ ] T025 [P] [US1] Write block handling tests in `tests/integration/test_membership.py`: `kicked` sets and `member` clears `blocked_at`, recurring messages move to a future send with no catch-up on unblock, overdue one-time messages stay due, and a 403 returns a claimed one-time message to `active` so it can be claimed again
-- [ ] T026 [P] [US1] Write maintenance tests in `tests/integration/test_maintenance.py`: a user is deleted after exactly 12 calendar months blocked and not before, unblocking resets the period, delivery records are deleted after 90 days, and only 7 days of backups are kept
-- [ ] T027 [P] [US1] Write language tests in `tests/contract/test_language.py`: `/language` offers both languages, all later text uses the chosen one, and reminder text is unchanged
+- [X] T023 [P] [US1] Write create flow tests in `tests/contract/test_create_flow.py`: full flow for each recurrence type, Every N days asks for an interval, invalid input repeats only its step, Cancel saves nothing, non-text input is rejected, past dates are rejected for every recurrence, confirmation shows "Kyiv time" and the next send, and the limit of 100 is enforced at flow start and at save, with completed messages not counted
+- [X] T024 [P] [US1] Write dispatcher tests in `tests/integration/test_dispatcher.py`: recurring messages advance, one-time messages stay active until their delivery ends and then complete, no second claim for the same send, missed sends collapse into one, a note goes first when more than 1 minute late and not otherwise, text is sent with no parse mode, each row of the failure table in research.md, `retrying` sends continue past 1 hour and resume after a restart, a recurring message that comes due during a retry adds no new delivery, leftover `sending` records become `unknown` and aren't resent, blocked users are skipped, and a message edited or removed at the moment it's due is either sent in its previous form or handled under the new values, never both
+- [X] T025 [P] [US1] Write block handling tests in `tests/integration/test_membership.py`: `kicked` sets and `member` clears `blocked_at`, recurring messages move to a future send with no catch-up on unblock, overdue one-time messages stay due, and a 403 returns a claimed one-time message to `active` so it can be claimed again
+- [X] T026 [P] [US1] Write maintenance tests in `tests/integration/test_maintenance.py`: a user is deleted after exactly 12 calendar months blocked and not before, unblocking resets the period, delivery records are deleted after 90 days, and only 7 days of backups are kept
+- [X] T027 [P] [US1] Write language tests in `tests/contract/test_language.py`: `/language` offers both languages, all later text uses the chosen one, and reminder text is unchanged
 
 ### Implementation for User Story 1
 
-- [ ] T028 [US1] Add message creation with an in-transaction limit check, active message count, due message and due retry queries, claim, outcome recording with one-time completion, retry scheduling, return of a blocked one-time message, unblock rescheduling and leftover `sending` handling, per data-model.md and the Delivery section of research.md, in `src/reminder_bot/storage/repositories.py`
-- [ ] T029 [P] [US1] Define the create flow states in `src/reminder_bot/bot/states.py`
-- [ ] T030 [US1] Add recurrence, Cancel and language buttons in `src/reminder_bot/bot/keyboards.py`
-- [ ] T031 [US1] Add English and Ukrainian text for the create flow, validation errors, confirmations, recurrence names, the overdue note and the limit message in `src/reminder_bot/i18n/en.py` and `src/reminder_bot/i18n/uk.py`
-- [ ] T032 [US1] Implement the create flow per contracts/bot-interface.md, including the check that date and time together are in the future, in `src/reminder_bot/bot/routers/create.py`, until T023 passes
-- [ ] T033 [P] [US1] Implement `/language` and its buttons in `src/reminder_bot/bot/routers/language.py`, until T027 passes
-- [ ] T034 [P] [US1] Implement block and unblock handling from `my_chat_member` updates in `src/reminder_bot/bot/routers/membership.py`, with the status assumption logged so it can be confirmed live
-- [ ] T035 [US1] Implement the 5-second loop, claim-then-send, the failure table, saved retries, the overdue note, the shared rate limiter with an injectable clock (25 per second overall, about 1 per second per chat, pause on `retry_after`), the heartbeat file and draining in-flight sends on shutdown in `src/reminder_bot/scheduler/dispatcher.py`, until T024 and T025 pass
-- [ ] T036 [US1] Implement daily blocked-user deletion, 90-day delivery record cleanup and daily database backups with 7 days kept in `src/reminder_bot/scheduler/maintenance.py`, until T026 passes
-- [ ] T037 [US1] Wire the new routers, dispatcher, maintenance job, leftover `sending` handling at startup and per-language `setMyCommands` into `src/reminder_bot/__main__.py`
+- [X] T028 [US1] Add message creation with an in-transaction limit check, active message count, due message and due retry queries, claim, outcome recording with one-time completion, retry scheduling, return of a blocked one-time message, unblock rescheduling and leftover `sending` handling, per data-model.md and the Delivery section of research.md, in `src/reminder_bot/storage/repositories.py`
+- [X] T029 [P] [US1] Define the create flow states in `src/reminder_bot/bot/states.py`
+- [X] T030 [US1] Add recurrence, Cancel and language buttons in `src/reminder_bot/bot/keyboards.py`
+- [X] T031 [US1] Add English and Ukrainian text for the create flow, validation errors, confirmations, recurrence names, the overdue note and the limit message in `src/reminder_bot/i18n/en.py` and `src/reminder_bot/i18n/uk.py`
+- [X] T032 [US1] Implement the create flow per contracts/bot-interface.md, including the check that date and time together are in the future, in `src/reminder_bot/bot/routers/create.py`, until T023 passes
+- [X] T033 [P] [US1] Implement `/language` and its buttons in `src/reminder_bot/bot/routers/language.py`, until T027 passes
+- [X] T034 [P] [US1] Implement block and unblock handling from `my_chat_member` updates in `src/reminder_bot/bot/routers/membership.py`, with the status assumption logged so it can be confirmed live
+- [X] T035 [US1] Implement the 5-second loop, claim-then-send, the failure table, saved retries, the overdue note, the shared rate limiter with an injectable clock (25 per second overall, about 1 per second per chat, pause on `retry_after`), the heartbeat file and draining in-flight sends on shutdown in `src/reminder_bot/scheduler/dispatcher.py`, until T024 and T025 pass
+- [X] T036 [US1] Implement daily blocked-user deletion, 90-day delivery record cleanup and daily database backups with 7 days kept in `src/reminder_bot/scheduler/maintenance.py`, until T026 passes
+- [X] T037 [US1] Wire the new routers, dispatcher, maintenance job, leftover `sending` handling at startup and per-language `setMyCommands` into `src/reminder_bot/__main__.py`
 
 **Checkpoint**: A user can create messages and receive them. This is a usable MVP, validated by quickstart.md checks 1–4 and 12–16
 
@@ -111,14 +111,14 @@ All paths are relative to the repository root.
 
 ### Tests for User Story 2
 
-- [ ] T038 [P] [US2] Write list tests in `tests/contract/test_list.py`: active messages first by next send date, then completed; paging at 5 reaches every message; preview, recurrence, time, next send date and status are shown; a one-time message being sent shows "Sending" and one that failed permanently shows "Not delivered"; full text appears on the message screen; the empty list offers New message; and one user can't list or open another user's message, getting the same "no longer available" answer as for a removed message
+- [X] T038 [P] [US2] Write list tests in `tests/contract/test_list.py`: active messages first by next send date, then completed; paging at 5 reaches every message; preview, recurrence, time, next send date and status are shown; a one-time message being sent shows "Sending" and one that failed permanently shows "Not delivered"; full text appears on the message screen; the empty list offers New message; and one user can't list or open another user's message, getting the same "no longer available" answer as for a removed message
 
 ### Implementation for User Story 2
 
-- [ ] T039 [US2] Add a paged list query and a message lookup scoped by user in `src/reminder_bot/storage/repositories.py`
-- [ ] T040 [US2] Add list paging and message screen buttons, with the correct set for active, active `interval` and completed messages, in `src/reminder_bot/bot/keyboards.py`
-- [ ] T041 [US2] Add English and Ukrainian text for the list, message screen and empty state in `src/reminder_bot/i18n/en.py` and `src/reminder_bot/i18n/uk.py`
-- [ ] T042 [US2] Implement `/list`, paging and the message screen in `src/reminder_bot/bot/routers/list.py` and register it in `src/reminder_bot/__main__.py`, until T038 passes
+- [X] T039 [US2] Add a paged list query and a message lookup scoped by user in `src/reminder_bot/storage/repositories.py`
+- [X] T040 [US2] Add list paging and message screen buttons, with the correct set for active, active `interval` and completed messages, in `src/reminder_bot/bot/keyboards.py`
+- [X] T041 [US2] Add English and Ukrainian text for the list, message screen and empty state in `src/reminder_bot/i18n/en.py` and `src/reminder_bot/i18n/uk.py`
+- [X] T042 [US2] Implement `/list`, paging and the message screen in `src/reminder_bot/bot/routers/list.py` and register it in `src/reminder_bot/__main__.py`, until T038 passes
 
 **Checkpoint**: Users can create, receive and review messages. Validated by quickstart.md checks 5 and 10
 
@@ -132,14 +132,14 @@ All paths are relative to the repository root.
 
 ### Tests for User Story 3
 
-- [ ] T043 [P] [US3] Write update tests in `tests/contract/test_update.py`: each row of "What sets `next_send_at`" in data-model.md; a text edit leaves the schedule unchanged; Every N days always asks for both date and interval, saving neither until both are valid; switching to Only once or Every N days asks for a new date; past values and Cancel leave the message unchanged; completed messages can't be updated; and another user's message can't be updated
+- [X] T043 [P] [US3] Write update tests in `tests/contract/test_update.py`: each row of "What sets `next_send_at`" in data-model.md; a text edit leaves the schedule unchanged; Every N days always asks for both date and interval, saving neither until both are valid; switching to Only once or Every N days asks for a new date; past values and Cancel leave the message unchanged; completed messages can't be updated; and another user's message can't be updated
 
 ### Implementation for User Story 3
 
-- [ ] T044 [US3] Add update functions that re-check owner and `active` status and recalculate `next_send_at` in one transaction in `src/reminder_bot/storage/repositories.py`
-- [ ] T045 [US3] Add the update flow states in `src/reminder_bot/bot/states.py`
-- [ ] T046 [US3] Add English and Ukrainian text for update prompts and confirmations in `src/reminder_bot/i18n/en.py` and `src/reminder_bot/i18n/uk.py`
-- [ ] T047 [US3] Implement the update flows per contracts/bot-interface.md in `src/reminder_bot/bot/routers/update.py` and register them in `src/reminder_bot/__main__.py`, until T043 passes
+- [X] T044 [US3] Add update functions that re-check owner and `active` status and recalculate `next_send_at` in one transaction in `src/reminder_bot/storage/repositories.py`
+- [X] T045 [US3] Add the update flow states in `src/reminder_bot/bot/states.py`
+- [X] T046 [US3] Add English and Ukrainian text for update prompts and confirmations in `src/reminder_bot/i18n/en.py` and `src/reminder_bot/i18n/uk.py`
+- [X] T047 [US3] Implement the update flows per contracts/bot-interface.md in `src/reminder_bot/bot/routers/update.py` and register them in `src/reminder_bot/__main__.py`, until T043 passes
 
 **Checkpoint**: Validated by quickstart.md checks 6–8
 
@@ -153,13 +153,13 @@ All paths are relative to the repository root.
 
 ### Tests for User Story 4
 
-- [ ] T048 [P] [US4] Write removal tests in `tests/contract/test_remove.py`: confirming deletes the message and its delivery records; Keep changes nothing; a removed message is never claimed; active and completed messages can both be removed; removing frees a place under the limit; an old button answers "no longer available"; and another user's message can't be removed
+- [X] T048 [P] [US4] Write removal tests in `tests/contract/test_remove.py`: confirming deletes the message and its delivery records; Keep changes nothing; a removed message is never claimed; active and completed messages can both be removed; removing frees a place under the limit; an old button answers "no longer available"; and another user's message can't be removed
 
 ### Implementation for User Story 4
 
-- [ ] T049 [US4] Add deletion scoped by user in `src/reminder_bot/storage/repositories.py`
-- [ ] T050 [US4] Add English and Ukrainian text for removal in `src/reminder_bot/i18n/en.py` and `src/reminder_bot/i18n/uk.py`
-- [ ] T051 [US4] Implement the remove flow with confirmation buttons in `src/reminder_bot/bot/routers/remove.py` and register it in `src/reminder_bot/__main__.py`, until T048 passes
+- [X] T049 [US4] Add deletion scoped by user in `src/reminder_bot/storage/repositories.py`
+- [X] T050 [US4] Add English and Ukrainian text for removal in `src/reminder_bot/i18n/en.py` and `src/reminder_bot/i18n/uk.py`
+- [X] T051 [US4] Implement the remove flow with confirmation buttons in `src/reminder_bot/bot/routers/remove.py` and register it in `src/reminder_bot/__main__.py`, until T048 passes
 
 **Checkpoint**: All user stories work. Validated by quickstart.md check 9
 
@@ -169,8 +169,8 @@ All paths are relative to the repository root.
 
 **Purpose**: Run the bot in a container
 
-- [ ] T052 [P] Create a `Dockerfile` using a Python 3.14 slim image and `uv.lock`, running as a non-root user that can write to `/data`
-- [ ] T053 [P] Create `compose.yaml` per contracts/runtime-config.md: `restart: unless-stopped`, a named volume at `/data`, `env_file: .env`, a 30-second stop grace period, a health check on the heartbeat file, and no published ports
+- [X] T052 [P] Create a `Dockerfile` using a Python 3.14 slim image and `uv.lock`, running as a non-root user that can write to `/data`
+- [X] T053 [P] Create `compose.yaml` per contracts/runtime-config.md: `restart: unless-stopped`, a named volume at `/data`, `env_file: .env`, a 30-second stop grace period, a health check on the heartbeat file, and no published ports
 - [ ] T054 Run the `docker compose up --build` and redeployment checks in `specs/001-telegram-reminder-bot/quickstart.md`, confirming messages survive a rebuild (check 14)
 ---
 
@@ -178,10 +178,10 @@ All paths are relative to the repository root.
 
 **Purpose**: Checks that span all stories
 
-- [ ] T055 [P] Add a test that runs the create and send paths and asserts no reminder text or token appears in logs, in `tests/integration/test_log_privacy.py`
-- [ ] T056 [P] Add a test that 1,500 messages due in the same minute, across different users, are all sent within 1 minute of simulated time by a fake session, respecting the rate limiter (SC-002), in `tests/integration/test_dispatch_load.py`
+- [X] T055 [P] Add a test that runs the create and send paths and asserts no reminder text or token appears in logs, in `tests/integration/test_log_privacy.py`
+- [X] T056 [P] Add a test that 1,500 messages due in the same minute, across different users, are all sent within 1 minute of simulated time by a fake session, respecting the rate limiter (SC-002), in `tests/integration/test_dispatch_load.py`
 - [ ] T057 **Needs your review.** Review all Ukrainian wording in `src/reminder_bot/i18n/uk.py`
-- [ ] T058 Replace the "planned" notes in `CLAUDE.md` with the confirmed commands and architecture
+- [X] T058 Replace the "planned" notes in `CLAUDE.md` with the confirmed commands and architecture
 - [ ] T059 Run `uv run ruff check .`, `uv run ruff format --check .` and `uv run pytest`, then complete every check in `specs/001-telegram-reminder-bot/quickstart.md` on a test bot, including the timing checks and confirming the `kicked` and `member` block statuses in research.md, and record any differences in `specs/001-telegram-reminder-bot/research.md`
 
 ---

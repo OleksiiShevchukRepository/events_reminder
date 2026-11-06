@@ -91,6 +91,8 @@ lang:en | lang:uk
 flow:cancel
 ```
 
+`msg:<id>:edit_date` is also used by **Edit date and interval**. The bot picks the flow from the message's recurrence.
+
 ## Telegram updates
 
 | Update | Used for |

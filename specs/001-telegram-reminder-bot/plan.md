@@ -64,9 +64,13 @@ src/reminder_bot/
 │   ├── migrations/      # Numbered .sql files
 │   └── repositories.py  # All SQL, always scoped by user for user-facing queries
 ├── bot/
-│   ├── routers/         # Handlers: start/menu, create, list, update, remove, language, membership
+│   ├── app.py           # Builds the dispatcher, with routers in their required order
+│   ├── routers/         # Handlers: start, create, list, update, remove, language, membership, fallback
+│   ├── middleware.py    # Private chats only, who is asking, response timing logs
+│   ├── session.py       # Recognizes Telegram gateway errors
 │   ├── states.py        # Guided flow states
-│   └── keyboards.py     # Inline buttons and callback data
+│   ├── keyboards.py     # Inline buttons and callback data
+│   └── views.py         # Formatting shared by screens and the scheduler
 ├── scheduler/
 │   ├── dispatcher.py    # Claims due messages and sends them
 │   └── maintenance.py   # Blocked-user deletion, delivery record cleanup, backups
