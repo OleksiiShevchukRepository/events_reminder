@@ -18,6 +18,8 @@
 - Q: Can a date that has passed be set? → A: No, for any recurrence type.
 - Q: How do weekly, monthly and yearly messages repeat? → A: Weekly on the start date's weekday (every 7 days), monthly on the same date of the month (the 29th goes out on 28 February unless it is a leap year), yearly on the same date of the year.
 - Q: How should users choose their time zone? → A: They don't. The bot uses only Kyiv time, for all users.
+- Q: What should happen when a user blocks the bot? → A: Pause sending while blocked and resume on unblock, then delete the user's data after 12 months blocked.
+- Q: Can a completed one-time message be updated? → A: No. Completed messages can only be removed, and users create a new message instead.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -49,6 +51,8 @@ A user opens a private chat with the bot and creates a scheduled message by givi
 16. **Given** a user at any step of creating a message, **When** they press Cancel, **Then** nothing is saved.
 17. **Given** a monthly message starting on 29 January 2027, **When** it repeats, **Then** it is sent on 28 February 2027 and 29 March 2027, and on 29 February in the leap year 2028.
 18. **Given** a weekly message starting on a Wednesday, **When** it repeats, **Then** it is sent every Wednesday, 7 days apart.
+19. **Given** a user who has blocked the bot, **When** their messages come due, **Then** no sends are attempted; if they unblock within 12 months, their recurring messages resume at the next scheduled send.
+20. **Given** a user who has blocked the bot for 12 continuous months, **When** that period ends, **Then** their data is permanently deleted, and if they return, their list is empty.
 
 ---
 
@@ -87,6 +91,7 @@ A user picks one of their scheduled messages and changes its text, recurrence or
 6. **Given** a custom interval message that repeats every 10 days, **When** the user updates it, **Then** the bot asks for both a new date and a new interval, and neither is saved until both are valid.
 7. **Given** that update with the new date 25.11.2026 and an interval of 5 days, **When** it is saved, **Then** the next sends are on 25.11.2026, 30.11.2026, 5.12.2026 and so on, and no sends based on the old values happen.
 8. **Given** a user updating a message's date, **When** the new date and time are in the past, **Then** the bot rejects them and the saved message stays unchanged.
+9. **Given** a completed one-time message in the list, **When** the user selects it, **Then** the bot offers to remove it but not to update it.
 
 ---
 
@@ -114,7 +119,7 @@ A user picks one of their scheduled messages and removes it after confirming. It
 - **Date or time already passed**: A date and time in the past are rejected when entered, for every recurrence type. This includes today's date with a time that has already passed.
 - **Time-only update**: Updating only the send time of a recurring message keeps its original start date, and the next send is the next date on its schedule at the new time. Updating the time of a one-time message requires the resulting date and time to be in the future.
 - **Bot unavailable at send time**: After recovery, each overdue message is sent once with a note of its original time. A recurring message that missed several sends is sent only once, then resumes its schedule.
-- **User has blocked the bot**: The failed send is recorded and the schedule is kept, so delivery resumes at the next send if the user unblocks the bot.
+- **User has blocked the bot**: Sending pauses while the bot is blocked. On unblock, recurring messages resume at their next scheduled send without catching up, and a one-time message that came due during the block is sent once with a note of its original time. After 12 months blocked, the user's data is deleted, and returning later starts from nothing.
 - **Temporary delivery failure**: Sending is retried, and a message is not delivered twice for the same scheduled send.
 - **Editing at send time**: If a message is updated or removed at the moment it is due, it is either sent in its previous form or handled under the new values, but never both.
 - **Maximum length**: Text longer than Telegram's single-message limit (4,096 characters) is rejected with a clear explanation.
@@ -143,9 +148,10 @@ A user picks one of their scheduled messages and removes it after confirming. It
 - **FR-008**: The system MUST send each message to the chat of the user who created it at its scheduled time in Kyiv time.
 - **FR-009**: The system MUST calculate the next send date after each send of a recurring message, following the Edge Cases rules for short months, leap years and daylight saving time.
 - **FR-010**: The system MUST NOT send a message more than once for the same scheduled send.
-- **FR-011**: One-time messages MUST NOT be sent again once they have been sent. They MUST stay visible in the list marked as completed until the user removes them.
+- **FR-011**: One-time messages MUST NOT be sent again once they have been sent. They MUST stay visible in the list marked as completed until the user removes them, and MUST NOT be updatable.
 - **FR-012**: Scheduled messages MUST survive restarts and redeployments of the bot.
 - **FR-013**: After downtime, the system MUST send each overdue message once, with a note of its original time, and resume its schedule.
+- **FR-013a**: The system MUST pause sending to a user who has blocked the bot and resume when they unblock it, following the Edge Cases rule. After 12 continuous months blocked, it MUST permanently delete that user's record, scheduled messages and delivery records.
 
 **Viewing**
 
@@ -154,8 +160,8 @@ A user picks one of their scheduled messages and removes it after confirming. It
 
 **Updating and removing**
 
-- **FR-016**: Users MUST be able to update the text, recurrence type, start date and send time of any of their messages, and the interval of custom interval messages.
-- **FR-016a**: For custom interval messages, the date and the interval MUST be updated together, never only one of them. After the update, the next send MUST be on the new date, then every N days. Switching any message to custom interval or "only once" MUST also ask for a new date.
+- **FR-016**: Users MUST be able to update the text, recurrence type, start date and send time of any of their active messages, and the interval of custom interval messages.
+- **FR-016a**: For custom interval messages, the date and the interval MUST be updated together, never only one of them. After the update, the next send MUST be on the new date, then every N days. Switching an active message to custom interval or "only once" MUST also ask for a new date.
 - **FR-017**: After a recurrence or time update, the system MUST recalculate the next send date and MUST NOT make any send based on the old values.
 - **FR-018**: Users MUST be able to cancel an update before it is saved, leaving the message unchanged.
 - **FR-019**: Users MUST be able to remove any of their messages after an explicit confirmation. A removed message MUST NOT be sent again.
@@ -175,7 +181,7 @@ A user picks one of their scheduled messages and removes it after confirming. It
 
 ### Key Entities
 
-- **User**: A person using the bot, identified by their Telegram account. Has a private chat with the bot and a language.
+- **User**: A person using the bot, identified by their Telegram account. Has a private chat with the bot, a language and, while the bot is blocked, the date the block began.
 - **Scheduled Message**: A reminder owned by one user. Has text, recurrence type, start date, send time, interval in days (custom interval only), next send date and status (active or completed).
 - **Delivery Record**: One attempted send of a scheduled message. Has the scheduled time, the actual time and the outcome. Used to prevent duplicate sends and to diagnose failures.
 
