@@ -4,7 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-This repo holds a Telegram reminder bot that is specified but not built. There is no application code, so there are no build, lint or test commands yet, and no language, storage or hosting has been chosen. Those choices belong to `/speckit-plan`. Add the real commands and architecture here once they exist.
+This repo holds a Telegram reminder bot that is specified and planned but not built. There is no application code yet, so the commands below won't work until it exists. Replace this note and confirm the commands once they do.
+
+## Planned stack and commands
+
+Python 3.14, aiogram, SQLite, managed with `uv`. Reasoning is in `specs/001-telegram-reminder-bot/research.md`.
+
+```bash
+uv sync
+uv run ruff check .
+uv run pytest
+uv run pytest tests/unit/test_schedule.py::test_monthly_short_months
+uv run python -m reminder_bot
+```
+
+## Planned architecture
+
+One process runs a Telegram long-polling handler and a scheduler loop over one SQLite file. Three rules span several files:
+
+- Next sends are always calculated from a message's original start date, never from the previous send. Otherwise a monthly message on the 31st drifts to the 28th for good.
+- The scheduler commits a delivery record and the schedule change before calling Telegram, and never resends an unknown outcome, because duplicates are forbidden (FR-010).
+- All times are stored in UTC, and the user-facing time zone is always `Europe/Kyiv`.
 
 ## Workflow
 
