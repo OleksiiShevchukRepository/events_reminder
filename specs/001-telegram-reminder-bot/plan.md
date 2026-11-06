@@ -28,7 +28,7 @@ The bot is a single Python process with two concurrent parts: a Telegram long-po
 
 **Constraints**: Telegram allows about 30 messages per second overall and about 1 per second per chat, and 1–4,096 characters per message. Only one process can poll a bot token at a time. There must be no duplicate sends (FR-010).
 
-**Scale/Scope**: Designed for up to a few thousand users, with at most 100 active messages each (FR-020a). A peak of about 1,800 messages per minute is the ceiling set by Telegram's limit.
+**Scale/Scope**: Designed for up to a few thousand users, with at most 100 active messages each (FR-020a). A peak of about 1,500 messages per minute is the ceiling set by the bot's 25-per-second limiter, just under Telegram's limit of about 30.
 
 ## Project Structure
 
@@ -90,7 +90,7 @@ pyproject.toml
 ## How the Parts Work Together
 
 1. **Handlers** run the guided flows. Each flow is held in memory until its final step, then saved in one database transaction. A restart mid-flow discards it, which matches the spec's abandoned input rule.
-2. **Scheduler** checks every 5 seconds for due messages. For each, one transaction records the delivery attempt and advances the schedule; the message is sent only after that commit. This order is what prevents duplicate sends. See the Delivery section of [research.md](research.md).
+2. **Scheduler** checks every 5 seconds for due messages. For each, one transaction records the delivery attempt and advances the schedule; the message is sent only after that commit. This order is what prevents duplicate sends. Sends that can safely be retried are saved as `retrying`, so they survive restarts and long Telegram outages. See the Delivery section of [research.md](research.md).
 3. **Maintenance** runs daily: it deletes data for users blocked for 12 months, removes old delivery records and makes a database backup.
 
 ## Decisions to Confirm
@@ -101,6 +101,7 @@ These go beyond the spec or need your input. Each is explained in [research.md](
 |---|---|
 | Hosting provider | Any small Linux server with Docker. No provider is chosen yet, and you'd need to provide the account and the BotFather token. |
 | Crash during a send | Never resend if the outcome is unknown. In rare cases this can lose one send instead of duplicating it. |
+| Telegram gateway errors | Retry 502, 503 and 504 with no time limit. There's a small risk of a duplicate, chosen over losing reminders during an outage. |
 | Off-server backups | Daily backups stay on the server, so they won't survive losing the server itself. |
 | Input limits | Interval of at most 3,650 days and dates up to the year 2100. The spec sets no maximum. |
 | List display | Lists show a short text preview, with the full text on the message's own screen. |

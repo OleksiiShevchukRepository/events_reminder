@@ -88,6 +88,14 @@ Confirm the assumption in [research.md](research.md) first: the logs for step 15
 
 The 12-month deletion, the 100-message limit and the 90-day cleanup are covered by the automated tests, using an injected clock and test data.
 
+## Timing checks
+
+| # | Steps | Expected | Spec |
+|---|---|---|---|
+| 17 | Time a first-time user creating a message without help | Under 1 minute | SC-001 |
+| 18 | Time viewing the list, an update and a removal | Each under 30 seconds | SC-006 |
+| 19 | Check handler times in the logs after the full validation run | At least 95% within 2 seconds | SC-007 |
+
 ## Deployment readiness
 
 - [ ] All automated checks pass

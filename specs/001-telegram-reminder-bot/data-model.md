@@ -24,7 +24,7 @@ All stored timestamps are UTC. Kyiv time is used only for input, display and sch
 | `start_date` | date | Kyiv calendar date. The anchor for all repeats. |
 | `send_time` | time | Kyiv time, hours and minutes. |
 | `interval_days` | integer, nullable | 1–3,650 when `recurrence = interval`, otherwise null. |
-| `next_send_at` | timestamp, nullable | Set when `active`, null when `completed`. |
+| `next_send_at` | timestamp, nullable | Set while waiting for a send. Null while a one-time message's send is in progress, and when `completed`. |
 | `status` | text | `active` or `completed`. |
 | `created_at`, `updated_at` | timestamp | |
 
@@ -42,24 +42,28 @@ Stores no message text.
 | `message_id` | integer, foreign key | Deleted along with its message. |
 | `scheduled_at` | timestamp | The send this record belongs to. |
 | `sent_at` | timestamp, nullable | When Telegram accepted it. |
-| `status` | text | `sending`, `sent`, `failed`, `unknown` or `blocked`. |
+| `status` | text | `sending`, `retrying`, `sent`, `failed`, `unknown` or `blocked`. |
+| `next_attempt_at` | timestamp, nullable | When to retry. Set only while `retrying`. |
 | `error` | text, nullable | Short error code, never message content. |
 | `created_at` | timestamp | Used for the 90-day cleanup. |
 
 **Uniqueness**: A partial unique index on `(message_id, scheduled_at)` where `status != 'blocked'`. This prevents duplicate sends (FR-010) while still letting a one-time message returned by a block be claimed again.
 
+**Indexes**: `(status, next_attempt_at)` for finding retries that are due; `created_at` for the 90-day cleanup.
+
 ## Message states
 
 ```text
-create ──► active ──(one-time message claimed for sending)──► completed ──(user removes)──► deleted
-             │  ▲
-             │  └─(one-time message hits 403: back to active at its original time)
+create ──► active ──(one-time delivery ends as sent, unknown or failed)──► completed ──(user removes)──► deleted
              │
-             ├─(recurring message sent: stays active, next_send_at advances)
+             ├─(one-time message claimed: stays active, next_send_at cleared until delivery ends)
+             ├─(one-time message hits 403: stays active, original next_send_at restored)
+             ├─(recurring message claimed: stays active, next_send_at advances)
              └─(user removes)──► deleted
 ```
 
 - `completed` is final. These messages can only be removed, not updated (FR-011).
+- A completed message whose latest delivery is `failed` shows as "Not delivered". This is worked out from its delivery record, not stored as a separate message status.
 - Only `once` messages can become `completed`. Recurring messages have no end date (FR-007a).
 - Only `active` messages count towards the limit of 100 (FR-020a).
 
@@ -95,7 +99,9 @@ Each date is combined with `send_time` in `Europe/Kyiv`, then converted to UTC:
 |---|---|
 | Create | The first send, at `start_date` and `send_time`. |
 | Recurring send claimed | `next_after(now)`, so missed sends collapse into one (FR-013). |
-| One-time send claimed | Null, and status becomes `completed`. |
+| Recurring message due while an earlier send is `retrying` | `next_after(now)`, with no new delivery record. |
+| One-time send claimed | Null. The status becomes `completed` when the delivery ends as `sent`, `unknown` or `failed`. |
+| One-time send hits 403 | Back to its original time, so it can go out after an unblock. |
 | Text updated | Unchanged. |
 | Send time updated | `next_after(now)` with the new time, keeping `start_date`. For `once`, the new date and time must be in the future. |
 | Date updated (`daily`, `weekly`, `monthly`, `yearly`) | The first send on the new date. |

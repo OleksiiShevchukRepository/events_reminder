@@ -42,9 +42,9 @@ Package versions were checked on PyPI on 2026-11-06 and confirmed to resolve tog
 ## Delivery: no duplicates, and failures
 
 **Decision**: Claim first, then send.
-1. In one `BEGIN IMMEDIATE` transaction, insert a delivery record with status `sending` and advance the schedule. For a one-time message, mark it `completed` instead.
+1. In one `BEGIN IMMEDIATE` transaction, insert a delivery record with status `sending` and advance the schedule. For a one-time message, clear `next_send_at` instead; it stays `active` until its delivery ends.
 2. Commit, then call Telegram.
-3. Record the outcome.
+3. Record the outcome. A one-time message becomes `completed` when its delivery ends as `sent`, `unknown` or `failed`.
 
 A unique index on message and scheduled time blocks a second claim.
 
@@ -53,14 +53,19 @@ A unique index on message and scheduled time blocks a second claim.
 | Result from Telegram | Action |
 |---|---|
 | Success | Record `sent` |
-| 429 flood limit | Wait for the returned `retry_after`, then retry |
-| Connection could not be made, or a 5xx error | Retry with backoff for up to 1 hour, then record `failed` |
-| Read timeout (the outcome is unknown) | Record `unknown`, don't retry |
+| 429 flood limit | Status `retrying`, with `next_attempt_at` from the returned `retry_after` |
+| Connection could not be made, or a 502, 503 or 504 | Status `retrying`, with backoff up to 5 minutes between attempts and no overall time limit |
+| 500 or read timeout (the outcome is unknown) | Record `unknown`, don't retry |
 | 403 blocked | Set the user's `blocked_at` and handle it as described under Blocked users |
-| Other 4xx | Record `failed` and log it |
+| Other 4xx | Record `failed` and log it; a one-time message shows as "Not delivered" |
 | Process restarts with a record still `sending` | Mark it `unknown`, don't resend |
+| Process restarts with a record `retrying` | Resume it at `next_attempt_at` |
 
-**Trade-off**: Telegram has no idempotency key, so a request whose outcome is unknown can't be retried safely. FR-010 forbids duplicates, so this design accepts that a crash in the moment between commit and response can lose that one send, which falls short of SC-003 in that rare case. On a normal shutdown the process finishes in-flight sends first, so deployments don't trigger this.
+**Retries**: Each loop also picks up `retrying` records that are due, skipping blocked users. Because this state is saved in the database, retries survive restarts, and shutdown doesn't wait for them. A retry sends the message's current text, and a removed message's retry is deleted with it. If a recurring message comes due again while an earlier send is still retrying, its schedule advances without a new delivery record, so it's sent once after an outage.
+
+**Trade-offs**: Telegram has no idempotency key, so a request whose outcome is unknown can't be proved safe to retry.
+- **Crash during a send**: A crash between commit and response leaves the send `unknown`, so that one send can be lost. This is the exception written into SC-003. On a normal shutdown, the process finishes sends already in flight, so deployments don't trigger this.
+- **Gateway errors**: A 502, 503 or 504 usually means the request never reached Telegram's bot servers, but that isn't guaranteed, so retrying carries a small risk of a duplicate. This is the accepted risk written into FR-010, chosen over losing reminders during an outage.
 
 **Overdue note**: If a message goes out more than 1 minute late, a short note with its original time is sent in a separate message just before it, so reminder text is never altered and the 4,096-character limit still holds.
 
@@ -70,7 +75,7 @@ A unique index on message and scheduled time blocks a second claim.
 
 **Decision**: A shared limiter holds sends to 25 per second overall and spaces sends to the same chat about 1 second apart. Any 429 response pauses sending for `retry_after`.
 
-**Rationale**: Telegram documents about 30 messages per second for bulk sending and advises about 1 per second per chat. Staying slightly under avoids most 429s.
+**Rationale**: Telegram documents about 30 messages per second for bulk sending and advises about 1 per second per chat. Staying slightly under avoids most 429s, and sets the bot's peak at about 1,500 messages per minute.
 
 **Known limit on SC-002**: One user with more than about 60 messages at the same minute would see some go out later than 1 minute, though the FAQ says short bursts may be allowed. This extreme case is accepted, since it's bounded by the 100-message limit and affects only that user.
 
@@ -94,7 +99,7 @@ A unique index on message and scheduled time blocks a second claim.
 - **While blocked**: The scheduler skips the user, so no sends are attempted.
 - **On unblock**: Recurring messages move to their next future send, with no catch-up. An overdue one-time message remains due, so the scheduler sends it once with the note.
 - **After 12 calendar months blocked**: The daily job deletes the user, and their messages and delivery records go with them.
-- **403 on a claimed one-time message**: It returns to `active` at its original time, so it can still go out after an unblock.
+- **403 on a claimed one-time message**: It gets its original `next_send_at` back, so it can still go out after an unblock.
 
 ## Delivery record retention
 

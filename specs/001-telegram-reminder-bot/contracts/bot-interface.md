@@ -37,6 +37,7 @@ Each step offers **Cancel**. An invalid value repeats only that step with an exp
 - Active messages come first, by next send date, followed by completed ones (FR-015).
 - Pages show 5 messages, with **Previous** and **Next** buttons, so every message is reachable.
 - Each entry shows a text preview, recurrence, time, next send date and status (FR-014). Selecting it opens a screen with the full text.
+- A one-time message being sent shows "Sending" as its next send date. A completed message whose send failed permanently shows "Not delivered" as its status (FR-011).
 - An empty list says so and offers **New message**.
 
 ## Message screen

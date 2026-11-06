@@ -17,8 +17,8 @@ The time zone is fixed at `Europe/Kyiv` in code, not configured (FR-022). The co
 
 | Behavior | Requirement |
 |---|---|
-| Startup | Applies migrations, marks leftover `sending` records as `unknown`, then starts polling and the scheduler |
-| Shutdown (SIGTERM) | Stops taking new work and finishes in-flight sends, within 30 seconds |
+| Startup | Applies migrations, marks leftover `sending` records as `unknown`, then starts polling and the scheduler, which resumes `retrying` records |
+| Shutdown (SIGTERM) | Stops taking new work and finishes sends already in flight, within 30 seconds; `retrying` sends resume after restart |
 | Restart policy | `unless-stopped` |
 | Instances | Exactly one per bot token, because Telegram allows only one poller |
 | Network | Outbound HTTPS to `api.telegram.org`; no open ports |

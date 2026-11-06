@@ -58,7 +58,7 @@ A user opens a private chat with the bot and creates a scheduled message by givi
 
 ### User Story 2 - See all scheduled messages (Priority: P2)
 
-A user asks the bot for their scheduled messages and sees each one with its text, recurrence, time and next send date.
+A user asks the bot for their scheduled messages and sees each one with a text preview, recurrence, time and next send date, and can open any message to read its full text.
 
 **Why this priority**: Users need to be able to check what is scheduled, and they must be able to find a message before updating or removing it.
 
@@ -66,7 +66,7 @@ A user asks the bot for their scheduled messages and sees each one with its text
 
 **Acceptance Scenarios**:
 
-1. **Given** a user with several scheduled messages, **When** they request their list, **Then** they see all of them, ordered by next send date, with text, recurrence, time and next send date.
+1. **Given** a user with several scheduled messages, **When** they request their list, **Then** they see all of them, ordered by next send date, with a text preview, recurrence, time and next send date.
 2. **Given** a user with no scheduled messages, **When** they request their list, **Then** the bot says so and explains how to create one.
 3. **Given** two different users with scheduled messages, **When** each requests their list, **Then** each sees only their own messages.
 4. **Given** a user with more messages than fit in a single chat message, **When** they request their list, **Then** they can still reach every message.
@@ -120,7 +120,7 @@ A user picks one of their scheduled messages and removes it after confirming. It
 - **Time-only update**: Updating only the send time of a recurring message keeps its original start date, and the next send is the next date on its schedule at the new time. Updating the time of a one-time message requires the resulting date and time to be in the future.
 - **Bot unavailable at send time**: After recovery, each overdue message is sent once with a note of its original time. A recurring message that missed several sends is sent only once, then resumes its schedule.
 - **User has blocked the bot**: Sending pauses while the bot is blocked. On unblock, recurring messages resume at their next scheduled send without catching up, and a one-time message that came due during the block is sent once with a note of its original time. After 12 months blocked, the user's data is deleted, and returning later starts from nothing.
-- **Temporary delivery failure**: Sending is retried, and a message is not delivered twice for the same scheduled send.
+- **Temporary delivery failure**: Sending is retried until Telegram accepts it or rejects it permanently, including across restarts. After a long outage, a message is sent once with a note of its original time, and a recurring message that missed several sends is sent only once.
 - **Editing at send time**: If a message is updated or removed at the moment it is due, it is either sent in its previous form or handled under the new values, but never both.
 - **Maximum length**: Text longer than Telegram's single-message limit (4,096 characters) is rejected with a clear explanation.
 - **Abandoned input**: If a user stops part-way through creating or updating a message, nothing is saved or changed, and they can start again at any time.
@@ -136,10 +136,10 @@ A user picks one of their scheduled messages and removes it after confirming. It
 - **FR-001a**: Creating and updating MUST be guided step by step, with the bot asking for one value at a time. Choices such as recurrence type, and selecting a message to update or remove, MUST use buttons. Message text, dates (day.month.year, e.g. 7.11.2026), times (24-hour, e.g. 14:45) and intervals MUST be typed. Every step MUST offer a way to cancel.
 - **FR-002**: Each scheduled message MUST have message text, a recurrence type, a start date and a send time given in hours and minutes (e.g. 14:45).
 - **FR-003**: The system MUST support these recurrence types: only once, every day, every week, every month, every year and custom interval (every N days).
-- **FR-004**: For the custom interval recurrence, users MUST provide an interval of N days, where N is a whole number of 1 or more. The system MUST send on the start date and every N days after it.
+- **FR-004**: For the custom interval recurrence, users MUST provide an interval of N days, where N is a whole number from 1 to 3,650. The system MUST send on the start date and every N days after it.
 - **FR-005**: The system MUST validate all input and explain any rejected value, letting the user correct it without re-entering valid values.
 - **FR-006**: The system MUST confirm every saved message, including its next send date and time.
-- **FR-005a**: The system MUST reject any entered date and time that is in the past, for every recurrence type, both when creating and when updating.
+- **FR-005a**: The system MUST reject any entered date and time that is in the past, for every recurrence type, both when creating and when updating. Dates after 31.12.2100 MUST also be rejected.
 - **FR-007**: Weekly messages MUST repeat every 7 days on the weekday of their start date. Monthly messages MUST repeat on the same date of the month as their start date. Yearly messages MUST repeat on the same date of the year as their start date.
 - **FR-007a**: Recurring messages (every day, week, month, year and custom interval) MUST NOT have an end date. They MUST repeat until the user removes the message or switches it to another recurrence type.
 
@@ -147,15 +147,15 @@ A user picks one of their scheduled messages and removes it after confirming. It
 
 - **FR-008**: The system MUST send each message to the chat of the user who created it at its scheduled time in Kyiv time.
 - **FR-009**: The system MUST calculate the next send date after each send of a recurring message, following the Edge Cases rules for short months, leap years and daylight saving time.
-- **FR-010**: The system MUST NOT send a message more than once for the same scheduled send.
-- **FR-011**: One-time messages MUST NOT be sent again once they have been sent. They MUST stay visible in the list marked as completed until the user removes them, and MUST NOT be updatable.
+- **FR-010**: The system MUST NOT send a message more than once for the same scheduled send. The one accepted risk is retrying after a gateway error from Telegram, which usually means the message was never received but can't prove it.
+- **FR-011**: One-time messages MUST NOT be sent again once they have been sent. They MUST stay visible in the list marked as completed, or as not delivered if the send failed permanently, until the user removes them, and MUST NOT be updatable.
 - **FR-012**: Scheduled messages MUST survive restarts and redeployments of the bot.
 - **FR-013**: After downtime, the system MUST send each overdue message once, with a note of its original time, and resume its schedule.
 - **FR-013a**: The system MUST pause sending to a user who has blocked the bot and resume when they unblock it, following the Edge Cases rule. After 12 continuous months blocked, it MUST permanently delete that user's record, scheduled messages and delivery records.
 
 **Viewing**
 
-- **FR-014**: Users MUST be able to see all of their scheduled messages with text, recurrence, send time, next send date and status.
+- **FR-014**: Users MUST be able to see all of their scheduled messages with a text preview, recurrence, send time, next send date and status, and open any message to read its full text.
 - **FR-015**: The list MUST show active messages first, ordered by next send date, and every message MUST be reachable however many there are.
 
 **Updating and removing**
@@ -191,7 +191,7 @@ A user picks one of their scheduled messages and removes it after confirming. It
 
 - **SC-001**: A first-time user can create a scheduled message in under 1 minute without outside help.
 - **SC-002**: At least 99% of messages are delivered within 1 minute of their scheduled time while the bot is running normally.
-- **SC-003**: No message is lost because of a restart or redeployment: all of them are delivered on schedule or, if overdue, once after recovery.
+- **SC-003**: No message is lost because of a restart or redeployment: all of them are delivered on schedule or, if overdue, once after recovery. The one exception is a hard crash at the moment of sending, when the outcome can't be known. That send isn't repeated, because duplicates are forbidden (FR-010).
 - **SC-004**: No user can ever see or change another user's messages.
 - **SC-005**: Over a full year of test dates, weekly, monthly, yearly and custom interval messages are always scheduled for the correct date, including short months, leap years and clock changes.
 - **SC-006**: A user can see their list, or finish an update or removal, in under 30 seconds.
@@ -207,7 +207,8 @@ A user picks one of their scheduled messages and removes it after confirming. It
 - **Text only**: Scheduled messages contain plain text. Attachments and rich formatting are out of scope.
 - **Time zone**: All times are Kyiv time and follow Kyiv's official clock changes. Users elsewhere convert times themselves.
 - **Removal is permanent**: Removed messages cannot be restored.
-- **Hosting**: The specific hosting environment is chosen during planning. An operator supplies the bot's Telegram token and hosting account.
+- **Backups**: Deleted data can remain in daily backups for up to 7 days.
+- **Hosting**: The specific hosting environment is chosen before deployment. An operator supplies the bot's Telegram token and hosting account.
 - **No charges**: This version has no paid tiers.
 
 ## Out of Scope
