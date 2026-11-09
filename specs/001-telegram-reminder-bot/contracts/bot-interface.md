@@ -24,8 +24,8 @@ Each step offers **Cancel**. An invalid value repeats only that step with an exp
 | Step | Input | Rejected when |
 |---|---|---|
 | 0. Limit check | None | The user already has 100 active messages (flow doesn't start) |
-| 1. Text | Typed | Blank, too long, or not text (photo, sticker and so on) |
-| 2. Recurrence | Buttons: Only once, Every day, Every week, Every month, Every year, Every N days | |
+| 1. Recurrence ("How often should it be sent?") | Buttons: Only once, Every day, Every week, Every month, Every year, Every N days | |
+| 2. Text | Typed | Blank, too long, or not text (photo, sticker and so on) |
 | 3. Interval (Every N days only) | Typed whole number | Not a whole number from 1 to 3,650 |
 | 4. Date | Typed, e.g. `7.11.2026` | Not a real date, wrong format, after 31.12.2100, or before today in Kyiv |
 | 5. Time | Typed, e.g. `14:45`, with a "Kyiv time" label | Not a valid time, or the date and time together are in the past |

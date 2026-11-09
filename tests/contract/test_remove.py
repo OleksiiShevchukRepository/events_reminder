@@ -75,7 +75,7 @@ async def test_removing_frees_a_place_under_the_limit(chat: FakeChat, harness: H
     await chat.press(f"msg:{first.id}:remove")
     await chat.press(f"msg:{first.id}:remove_yes")
     await chat.send("/new")
-    assert chat.last_text == EN["prompt_text"]
+    assert chat.last_text == EN["prompt_recurrence"]
 
 
 async def test_old_button_for_a_removed_message_is_stale(chat: FakeChat, harness: Harness) -> None:

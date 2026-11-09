@@ -39,8 +39,10 @@ async def begin(bot: Bot, state: FSMContext, user: User, t: Translator, repo: Re
     if await repo.count_active(user.id) >= MAX_ACTIVE_MESSAGES:
         await bot.send_message(user.id, t("error_limit"), reply_markup=keyboards.main_menu(t))
         return
-    await state.set_state(CreateFlow.text)
-    await _prompt(bot, user, t, "prompt_text")
+    await state.set_state(CreateFlow.recurrence)
+    await bot.send_message(
+        user.id, t("prompt_recurrence"), reply_markup=keyboards.recurrence_choices(t)
+    )
 
 
 @router.callback_query(F.data == "menu:new")
@@ -54,19 +56,6 @@ async def on_menu_new(
 ) -> None:
     await bot.answer_callback_query(callback.id)
     await begin(bot, state, user, t, repo)
-
-
-@router.message(CreateFlow.text)
-async def on_text(message: Message, bot: Bot, state: FSMContext, user: User, t: Translator) -> None:
-    parsed = parse_text(message.text)
-    if parsed.error:
-        await _prompt(bot, user, t, parsed.error)
-        return
-    await state.update_data(text=parsed.value)
-    await state.set_state(CreateFlow.recurrence)
-    await bot.send_message(
-        user.id, t("prompt_recurrence"), reply_markup=keyboards.recurrence_choices(t)
-    )
 
 
 @router.message(CreateFlow.recurrence)
@@ -83,6 +72,18 @@ async def on_recurrence(
     await bot.answer_callback_query(callback.id)
     recurrence = Recurrence(callback.data.removeprefix("rec:"))
     await state.update_data(recurrence=recurrence.value)
+    await state.set_state(CreateFlow.text)
+    await _prompt(bot, user, t, "prompt_text")
+
+
+@router.message(CreateFlow.text)
+async def on_text(message: Message, bot: Bot, state: FSMContext, user: User, t: Translator) -> None:
+    parsed = parse_text(message.text)
+    if parsed.error:
+        await _prompt(bot, user, t, parsed.error)
+        return
+    await state.update_data(text=parsed.value)
+    recurrence = Recurrence((await state.get_data())["recurrence"])
     if recurrence is Recurrence.INTERVAL:
         await state.set_state(CreateFlow.interval)
         await _prompt(bot, user, t, "prompt_interval")

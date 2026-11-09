@@ -11,8 +11,8 @@ EN = LANGUAGES["en"]
 
 async def create(chat: FakeChat, recurrence: str, interval: str | None = None) -> None:
     await chat.send("/new")
-    await chat.send("Pay rent")
     await chat.press(f"rec:{recurrence}")
+    await chat.send("Pay rent")
     if interval is not None:
         await chat.send(interval)
     await chat.send("7.11.2026")
@@ -41,8 +41,8 @@ async def test_full_flow_for_each_recurrence(
 
 async def test_every_n_days_asks_for_an_interval(chat: FakeChat, harness: Harness) -> None:
     await chat.send("/new")
-    await chat.send("Water the plant")
     await chat.press("rec:interval")
+    await chat.send("Water the plant")
     assert chat.last_text == EN["prompt_interval"]
     await chat.send("10")
     await chat.send("7.11.2026")
@@ -54,8 +54,6 @@ async def test_every_n_days_asks_for_an_interval(chat: FakeChat, harness: Harnes
 
 async def test_steps_ask_for_one_value_at_a_time(chat: FakeChat) -> None:
     await chat.send("/new")
-    assert chat.last_text == EN["prompt_text"]
-    await chat.send("Pay rent")
     assert chat.last_text == EN["prompt_recurrence"]
     assert set(chat.last_buttons()) == {
         "Only once",
@@ -67,6 +65,8 @@ async def test_steps_ask_for_one_value_at_a_time(chat: FakeChat) -> None:
         "Cancel",
     }
     await chat.press("rec:weekly")
+    assert chat.last_text == EN["prompt_text"]
+    await chat.send("Pay rent")
     assert chat.last_text == EN["prompt_date"]
     await chat.send("7.11.2026")
     assert chat.last_text == EN["prompt_time"]
@@ -75,9 +75,9 @@ async def test_steps_ask_for_one_value_at_a_time(chat: FakeChat) -> None:
 async def test_every_step_offers_cancel(chat: FakeChat) -> None:
     await chat.send("/new")
     assert "Cancel" in chat.last_buttons()
-    await chat.send("text")
-    assert "Cancel" in chat.last_buttons()
     await chat.press("rec:interval")
+    assert "Cancel" in chat.last_buttons()
+    await chat.send("text")
     assert "Cancel" in chat.last_buttons()
     await chat.send("3")
     assert "Cancel" in chat.last_buttons()
@@ -96,8 +96,8 @@ async def test_confirmation_shows_details_and_kyiv_time(chat: FakeChat) -> None:
 
 async def test_time_prompt_mentions_kyiv_time(chat: FakeChat) -> None:
     await chat.send("/new")
-    await chat.send("x")
     await chat.press("rec:once")
+    await chat.send("x")
     await chat.send("7.11.2026")
     assert "Kyiv time" in chat.last_text
 
@@ -110,8 +110,8 @@ async def test_invalid_date_repeats_only_that_step(
     chat: FakeChat, harness: Harness, bad_value: str, error: str
 ) -> None:
     await chat.send("/new")
-    await chat.send("Pay rent")
     await chat.press("rec:once")
+    await chat.send("Pay rent")
     await chat.send(bad_value)
     assert chat.last_text == EN[error]
     await chat.send("7.11.2026")
@@ -124,8 +124,8 @@ async def test_past_date_is_rejected_for_every_recurrence(
     chat: FakeChat, harness: Harness, recurrence: str
 ) -> None:
     await chat.send("/new")
-    await chat.send("x")
     await chat.press(f"rec:{recurrence}")
+    await chat.send("x")
     await chat.send("5.11.2026")
     assert chat.last_text == EN["error_date_past"]
     assert await harness.repo.count_active(chat.user_id) == 0
@@ -136,8 +136,8 @@ async def test_earlier_today_is_rejected_and_later_today_accepted(
 ) -> None:
     # It's 14:00 in Kyiv.
     await chat.send("/new")
-    await chat.send("x")
     await chat.press("rec:daily")
+    await chat.send("x")
     await chat.send("6.11.2026")
     await chat.send("13:59")
     assert chat.last_text == EN["error_datetime_past"]
@@ -148,8 +148,8 @@ async def test_earlier_today_is_rejected_and_later_today_accepted(
 
 async def test_invalid_time_repeats_only_that_step(chat: FakeChat, harness: Harness) -> None:
     await chat.send("/new")
-    await chat.send("x")
     await chat.press("rec:once")
+    await chat.send("x")
     await chat.send("7.11.2026")
     await chat.send("25:70")
     assert chat.last_text == EN["error_time_invalid"]
@@ -160,29 +160,30 @@ async def test_invalid_time_repeats_only_that_step(chat: FakeChat, harness: Harn
 @pytest.mark.parametrize("bad_value", ["0", "1.5", "abc", "3651"])
 async def test_invalid_interval_is_rejected(chat: FakeChat, bad_value: str) -> None:
     await chat.send("/new")
-    await chat.send("x")
     await chat.press("rec:interval")
+    await chat.send("x")
     await chat.send(bad_value)
     assert chat.last_text == EN["error_interval_invalid"]
 
 
 async def test_non_text_message_is_rejected(chat: FakeChat, harness: Harness) -> None:
     await chat.send("/new")
+    await chat.press("rec:daily")
     await chat.send_photo()
     assert chat.last_text == EN["error_text_empty"]
     await chat.send("Now it's text")
-    assert chat.last_text == EN["prompt_recurrence"]
+    assert chat.last_text == EN["prompt_date"]
 
 
 async def test_too_long_text_is_rejected(chat: FakeChat) -> None:
     await chat.send("/new")
+    await chat.press("rec:once")
     await chat.send("a" * 4097)
     assert chat.last_text == EN["error_text_too_long"]
 
 
 async def test_typing_at_the_recurrence_step_asks_for_a_button(chat: FakeChat) -> None:
     await chat.send("/new")
-    await chat.send("x")
     await chat.send("weekly")
     assert chat.last_text == EN["error_choose_button"]
 
@@ -193,9 +194,9 @@ async def test_cancel_saves_nothing_at_any_step(
 ) -> None:
     await chat.send("/new")
     if step >= 1:
-        await chat.send("x")
-    if step >= 2:
         await chat.press("rec:once")
+    if step >= 2:
+        await chat.send("x")
     if step >= 3:
         await chat.send("7.11.2026")
     await chat.press("flow:cancel")
@@ -219,8 +220,8 @@ async def test_another_command_ends_the_flow_without_saving(
     chat: FakeChat, harness: Harness
 ) -> None:
     await chat.send("/new")
-    await chat.send("x")
     await chat.press("rec:once")
+    await chat.send("x")
     await chat.send("/help")
     assert EN["help"] in chat.texts()
     await chat.send("7.11.2026")
@@ -230,8 +231,9 @@ async def test_another_command_ends_the_flow_without_saving(
 
 async def test_unknown_slash_text_can_be_a_reminder(chat: FakeChat, harness: Harness) -> None:
     await chat.send("/new")
+    await chat.press("rec:once")
     await chat.send("/water the plant")
-    assert chat.last_text == EN["prompt_recurrence"]
+    assert chat.last_text == EN["prompt_date_once"]
 
 
 async def test_old_recurrence_button_after_the_flow_is_stale(
@@ -260,8 +262,8 @@ async def test_limit_is_enforced_when_the_flow_starts(chat: FakeChat, harness: H
 async def test_limit_is_enforced_again_at_save(chat: FakeChat, harness: Harness) -> None:
     await add_active(harness, chat.user_id, 99)
     await chat.send("/new")
-    await chat.send("x")
     await chat.press("rec:once")
+    await chat.send("x")
     await chat.send("7.11.2026")
     # Another flow fills the last place meanwhile.
     await add_active(harness, chat.user_id, 1)
@@ -280,9 +282,9 @@ async def test_completed_messages_do_not_count_towards_the_limit(
         (messages[0].id,),
     )
     await chat.send("/new")
-    assert chat.last_text == EN["prompt_text"]
+    assert chat.last_text == EN["prompt_recurrence"]
 
 
 async def test_menu_button_starts_a_new_message(chat: FakeChat) -> None:
     await chat.press("menu:new")
-    assert chat.last_text == EN["prompt_text"]
+    assert chat.last_text == EN["prompt_recurrence"]

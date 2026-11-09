@@ -598,8 +598,8 @@ async def test_harness_and_dispatcher_share_the_same_data(
 ) -> None:
     chat = harness.chat()
     await chat.send("/new")
-    await chat.send("From the flow")
     await chat.press("rec:once")
+    await chat.send("From the flow")
     await chat.send("7.11.2026")
     await chat.send("14:45")
     clock.set(DUE)

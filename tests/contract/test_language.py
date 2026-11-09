@@ -36,8 +36,8 @@ async def test_reminder_text_is_unchanged_by_a_language_change(
     chat: FakeChat, harness: Harness
 ) -> None:
     await chat.send("/new")
-    await chat.send("Pay rent")
     await chat.press("rec:once")
+    await chat.send("Pay rent")
     await chat.send("7.11.2026")
     await chat.send("14:45")
     await chat.send("/language")

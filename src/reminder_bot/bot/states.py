@@ -4,8 +4,8 @@ from aiogram.fsm.state import State, StatesGroup
 
 
 class CreateFlow(StatesGroup):
-    text = State()
     recurrence = State()
+    text = State()
     interval = State()
     date = State()
     time = State()

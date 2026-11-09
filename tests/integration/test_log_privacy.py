@@ -22,8 +22,8 @@ DUE = datetime(2026, 11, 7, 12, 45, tzinfo=UTC)
 async def create(harness: Harness, text: str, user_id: int) -> None:
     chat = harness.chat(user_id=user_id)
     await chat.send("/new")
-    await chat.send(text)
     await chat.press("rec:once")
+    await chat.send(text)
     await chat.send("7.11.2026")
     await chat.send("14:45")
 
