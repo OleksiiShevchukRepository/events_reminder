@@ -14,6 +14,7 @@ from aiogram.types import CallbackQuery, Message
 from reminder_bot.bot import keyboards
 from reminder_bot.bot.context import ChatContext
 from reminder_bot.bot.flow import ask, end_flow, track_member
+from reminder_bot.bot.screen import send_screen
 from reminder_bot.bot.states import CreateFlow
 from reminder_bot.bot.views import summary
 from reminder_bot.clock import Clock
@@ -42,9 +43,7 @@ async def begin(
 ) -> None:
     await end_flow(bot, state, ctx)
     if await repo.count_active(ctx.chat_id) >= MAX_ACTIVE_MESSAGES:
-        await bot.send_message(
-            text=t("error_limit"), reply_markup=keyboards.main_menu(t), **ctx.send_kwargs
-        )
+        await send_screen(bot, ctx, repo, t("error_limit"), keyboards.main_menu(t), trigger=command)
         return
     await state.set_state(CreateFlow.recurrence)
     if command is not None:
@@ -163,12 +162,10 @@ async def on_time(
     try:
         saved = await repo.create_message(ctx.chat_id, data["text"], rule, now, ctx.creator_name)
     except LimitReached:
-        await bot.send_message(
-            text=t("error_limit"), reply_markup=keyboards.main_menu(t), **ctx.send_kwargs
-        )
+        await send_screen(bot, ctx, repo, t("error_limit"), keyboards.main_menu(t))
         return
     if ctx.is_group:
         text = t("saved_by", name=ctx.member_name, summary=summary(t, saved))
     else:
         text = t("saved", summary=summary(t, saved))
-    await bot.send_message(text=text, reply_markup=keyboards.main_menu(t), **ctx.send_kwargs)
+    await send_screen(bot, ctx, repo, text, keyboards.main_menu(t))

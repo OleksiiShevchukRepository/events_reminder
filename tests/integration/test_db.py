@@ -35,14 +35,14 @@ async def insert_delivery(db: Database, status: str) -> None:
 
 async def test_migrations_apply_once_and_are_tracked(tmp_path: Path) -> None:
     db = await open_db(tmp_path)
-    assert (await db.fetch_one("PRAGMA user_version"))[0] == 2
+    assert (await db.fetch_one("PRAGMA user_version"))[0] == 3
     await db.migrate()  # A second run must not fail or re-apply anything.
-    assert (await db.fetch_one("PRAGMA user_version"))[0] == 2
+    assert (await db.fetch_one("PRAGMA user_version"))[0] == 3
     await db.close()
 
     reopened = await Database.open(tmp_path / "test.db")
     await reopened.migrate()
-    assert (await reopened.fetch_one("PRAGMA user_version"))[0] == 2
+    assert (await reopened.fetch_one("PRAGMA user_version"))[0] == 3
     await reopened.close()
 
 

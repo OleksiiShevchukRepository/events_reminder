@@ -7,11 +7,12 @@ import math
 
 from aiogram import Bot, F, Router
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, Message
 
 from reminder_bot.bot import keyboards
 from reminder_bot.bot.context import ChatContext
 from reminder_bot.bot.flow import end_flow
+from reminder_bot.bot.screen import send_screen, show_on_callback
 from reminder_bot.bot.views import (
     SUMMARY_PREVIEW_LENGTH,
     fits_in_one_message,
@@ -19,7 +20,6 @@ from reminder_bot.bot.views import (
     next_send_label,
     preview,
     recurrence_label,
-    show,
     status_label,
 )
 from reminder_bot.i18n import Translator
@@ -37,6 +37,7 @@ async def show_list(
     repo: Repository,
     page: int = 0,
     callback: CallbackQuery | None = None,
+    trigger: Message | None = None,
 ) -> None:
     messages, total = await repo.list_messages(ctx.chat_id, page, PAGE_SIZE)
     pages = math.ceil(total / PAGE_SIZE)
@@ -65,9 +66,9 @@ async def show_list(
         markup = keyboards.message_list(t, messages, first_number, page, pages)
 
     if callback is None:
-        await bot.send_message(text=text, reply_markup=markup, **ctx.send_kwargs)
+        await send_screen(bot, ctx, repo, text, markup, trigger=trigger)
     else:
-        await show(bot, callback, text, markup)
+        await show_on_callback(bot, ctx, repo, callback, text, markup)
 
 
 @router.callback_query(F.data == "menu:list")
@@ -115,10 +116,9 @@ async def on_open(
     markup = keyboards.message_screen(t, message)
     details = message_details(t, message, message.text)
     if fits_in_one_message(details):
-        await show(bot, callback, details, markup)
+        await show_on_callback(bot, ctx, repo, callback, details, markup)
         return
     # The longest texts leave no room for details, so they get their own message first.
     await bot.answer_callback_query(callback.id)
-    await bot.send_message(text=message.text, **ctx.send_kwargs)
     short = message_details(t, message, preview(message.text, SUMMARY_PREVIEW_LENGTH))
-    await bot.send_message(text=short, reply_markup=markup, **ctx.send_kwargs)
+    await send_screen(bot, ctx, repo, short, markup, before=(message.text,))

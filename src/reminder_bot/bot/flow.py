@@ -81,7 +81,8 @@ async def ask(
     await _track(state, _BOT_MESSAGES, sent.message_id)
 
 
-async def _delete(bot: Bot, chat_id: int, message_ids: list[int], whose: str) -> None:
+async def delete_messages(bot: Bot, chat_id: int, message_ids: list[int], whose: str) -> None:
+    """Delete messages in batches, skipping any Telegram refuses to delete."""
     for start in range(0, len(message_ids), _DELETE_BATCH):
         batch = message_ids[start : start + _DELETE_BATCH]
         try:
@@ -90,7 +91,7 @@ async def _delete(bot: Bot, chat_id: int, message_ids: list[int], whose: str) ->
             # Too old, already deleted, or no right to delete members' messages. The
             # flow still ends normally (002 FR-120).
             logger.info(
-                "flow_cleanup_skipped chat=%s whose=%s error=%s",
+                "cleanup_skipped chat=%s whose=%s error=%s",
                 chat_id,
                 whose,
                 type(error).__name__,
@@ -103,6 +104,6 @@ async def end_flow(bot: Bot, state: FSMContext, ctx: ChatContext) -> None:
     await state.clear()
     # The bot's own messages first: deleting them never needs admin rights.
     if data.get(_BOT_MESSAGES):
-        await _delete(bot, ctx.chat_id, data[_BOT_MESSAGES], "bot")
+        await delete_messages(bot, ctx.chat_id, data[_BOT_MESSAGES], "bot")
     if data.get(_MEMBER_MESSAGES):
-        await _delete(bot, ctx.chat_id, data[_MEMBER_MESSAGES], "member")
+        await delete_messages(bot, ctx.chat_id, data[_MEMBER_MESSAGES], "member")

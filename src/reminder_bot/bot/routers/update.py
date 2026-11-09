@@ -15,6 +15,7 @@ from aiogram.types import Message as TelegramMessage
 from reminder_bot.bot import keyboards
 from reminder_bot.bot.context import ChatContext
 from reminder_bot.bot.flow import ask, end_flow, track_member
+from reminder_bot.bot.screen import send_screen
 from reminder_bot.bot.states import UpdateFlow
 from reminder_bot.bot.views import summary
 from reminder_bot.clock import Clock
@@ -62,25 +63,30 @@ async def _current(state: FSMContext, ctx: ChatContext, repo: Repository) -> Mes
     return message if message is not None and message.is_active else None
 
 
-async def _stale(bot: Bot, state: FSMContext, ctx: ChatContext, t: Translator) -> None:
+async def _stale(
+    bot: Bot, state: FSMContext, ctx: ChatContext, t: Translator, repo: Repository
+) -> None:
     await end_flow(bot, state, ctx)
-    await bot.send_message(
-        text=t("no_longer_available"), reply_markup=keyboards.main_menu(t), **ctx.send_kwargs
-    )
+    await send_screen(bot, ctx, repo, t("no_longer_available"), keyboards.main_menu(t))
 
 
 async def _finish(
-    bot: Bot, state: FSMContext, ctx: ChatContext, t: Translator, saved: Message | None
+    bot: Bot,
+    state: FSMContext,
+    ctx: ChatContext,
+    t: Translator,
+    repo: Repository,
+    saved: Message | None,
 ) -> None:
     if saved is None:
-        await _stale(bot, state, ctx, t)
+        await _stale(bot, state, ctx, t, repo)
         return
     await end_flow(bot, state, ctx)
     if ctx.is_group:
         text = t("updated_by", name=ctx.member_name, summary=summary(t, saved))
     else:
         text = t("updated", summary=summary(t, saved))
-    await bot.send_message(text=text, reply_markup=keyboards.main_menu(t), **ctx.send_kwargs)
+    await send_screen(bot, ctx, repo, text, keyboards.main_menu(t))
 
 
 async def _save_schedule(
@@ -100,7 +106,7 @@ async def _save_schedule(
     except DateTimeInPast:
         await _prompt(bot, state, ctx, t, "error_datetime_past")
         return
-    await _finish(bot, state, ctx, t, saved)
+    await _finish(bot, state, ctx, t, repo, saved)
 
 
 # Text
@@ -139,7 +145,7 @@ async def on_new_text(
     saved = await repo.update_text(
         ctx.chat_id, data["message_id"], parsed.value, clock.now(), ctx.creator_name
     )
-    await _finish(bot, state, ctx, t, saved)
+    await _finish(bot, state, ctx, t, repo, saved)
 
 
 # Time
@@ -176,7 +182,7 @@ async def on_new_time(
         return
     current = await _current(state, ctx, repo)
     if current is None:
-        await _stale(bot, state, ctx, t)
+        await _stale(bot, state, ctx, t, repo)
         return
     if current.recurrence is Recurrence.ONCE:
         error = datetime_in_future(current.start_date, parsed.value, clock.now())
@@ -224,7 +230,7 @@ async def on_new_date(
         return
     current = await _current(state, ctx, repo)
     if current is None:
-        await _stale(bot, state, ctx, t)
+        await _stale(bot, state, ctx, t, repo)
         return
 
     new_date = parsed.value
@@ -277,7 +283,7 @@ async def on_new_interval(
         return
     current = await _current(state, ctx, repo)
     if current is None:
-        await _stale(bot, state, ctx, t)
+        await _stale(bot, state, ctx, t, repo)
         return
     new_date = date.fromisoformat(data["new_date"])
     rule = Rule(Recurrence.INTERVAL, new_date, current.send_time, parsed.value)
@@ -333,7 +339,7 @@ async def on_new_recurrence(
         return
     current = await _current(state, ctx, repo)
     if current is None:
-        await _stale(bot, state, ctx, t)
+        await _stale(bot, state, ctx, t, repo)
         return
     rule = Rule(target, current.start_date, current.send_time)
     await _save_schedule(bot, state, ctx, t, repo, clock, current.id, rule)

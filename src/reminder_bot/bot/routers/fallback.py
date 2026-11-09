@@ -9,7 +9,9 @@ from aiogram.types import CallbackQuery, Message
 from reminder_bot.bot import keyboards
 from reminder_bot.bot.context import ChatContext
 from reminder_bot.bot.flow import end_flow
+from reminder_bot.bot.screen import send_screen
 from reminder_bot.i18n import Translator
+from reminder_bot.storage.repositories import Repository
 
 router = Router(name="fallback")
 
@@ -26,16 +28,19 @@ def _stale_answer(ctx: ChatContext, callback: CallbackQuery) -> str:
 
 @router.callback_query(F.data == "flow:cancel")
 async def on_cancel_button(
-    callback: CallbackQuery, bot: Bot, state: FSMContext, ctx: ChatContext, t: Translator
+    callback: CallbackQuery,
+    bot: Bot,
+    state: FSMContext,
+    ctx: ChatContext,
+    t: Translator,
+    repo: Repository,
 ) -> None:
     if await state.get_state() is None:
         await bot.answer_callback_query(callback.id, t(_stale_answer(ctx, callback)))
         return
     await end_flow(bot, state, ctx)
     await bot.answer_callback_query(callback.id)
-    await bot.send_message(
-        text=t("cancelled"), reply_markup=keyboards.main_menu(t), **ctx.send_kwargs
-    )
+    await send_screen(bot, ctx, repo, t("cancelled"), keyboards.main_menu(t))
 
 
 @router.callback_query()
@@ -47,10 +52,10 @@ async def on_stale_button(
 
 
 @router.message()
-async def on_unknown_message(message: Message, bot: Bot, ctx: ChatContext, t: Translator) -> None:
+async def on_unknown_message(
+    message: Message, bot: Bot, ctx: ChatContext, t: Translator, repo: Repository
+) -> None:
     # In groups the bot never answers ordinary chat (002 FR-113).
     if ctx.is_group:
         return
-    await bot.send_message(
-        text=t("unknown_input"), reply_markup=keyboards.main_menu(t), **ctx.send_kwargs
-    )
+    await send_screen(bot, ctx, repo, t("unknown_input"), keyboards.main_menu(t), trigger=message)

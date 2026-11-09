@@ -83,12 +83,6 @@ async def test_private_cancel_leaves_only_cancelled(chat: FakeChat, harness: Har
     assert chat.last_text == EN["cancelled"]
 
 
-async def test_nothing_is_deleted_outside_a_flow(chat: FakeChat, harness: Harness) -> None:
-    await chat.send("/start")
-    await chat.send("/list")
-    assert harness.session.deleted() == []
-
-
 async def test_update_flows_clean_up_the_same_way(chat: FakeChat, harness: Harness) -> None:
     repo, now = harness.repo, harness.clock.now()
     await repo.get_or_create_chat(chat.user_id, "en", now)

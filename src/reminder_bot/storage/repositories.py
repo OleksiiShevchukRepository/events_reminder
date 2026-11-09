@@ -160,6 +160,21 @@ class Repository:
     async def set_language(self, chat_id: int, language: str) -> None:
         await self._db.execute("UPDATE chats SET language = ? WHERE id = ?", (language, chat_id))
 
+    async def get_screen(self, chat_id: int) -> list[int]:
+        """IDs of the bot's current screen in a private chat (002 FR-124)."""
+        row = await self._db.fetch_one(
+            "SELECT screen_message_ids FROM chats WHERE id = ?", (chat_id,)
+        )
+        if row is None or not row[0]:
+            return []
+        return [int(part) for part in row[0].split(",")]
+
+    async def set_screen(self, chat_id: int, message_ids: list[int]) -> None:
+        value = ",".join(str(message_id) for message_id in message_ids) or None
+        await self._db.execute(
+            "UPDATE chats SET screen_message_ids = ? WHERE id = ?", (value, chat_id)
+        )
+
     async def set_unreachable(self, chat_id: int, now: datetime) -> None:
         await self._db.execute(
             "UPDATE chats SET unreachable_at = ? WHERE id = ? AND unreachable_at IS NULL",

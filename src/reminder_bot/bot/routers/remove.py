@@ -10,7 +10,8 @@ from aiogram.types import CallbackQuery
 from reminder_bot.bot import keyboards
 from reminder_bot.bot.context import ChatContext
 from reminder_bot.bot.flow import end_flow
-from reminder_bot.bot.views import preview, show
+from reminder_bot.bot.screen import show_on_callback
+from reminder_bot.bot.views import preview
 from reminder_bot.i18n import Translator
 from reminder_bot.storage.repositories import Repository
 
@@ -34,7 +35,9 @@ async def on_remove(
         await bot.answer_callback_query(callback.id, t("no_longer_available"))
         return
     text = t("remove_confirm", text=preview(message.text, _CONFIRMATION_PREVIEW_LENGTH))
-    await show(bot, callback, text, keyboards.remove_confirmation(t, message.id))
+    await show_on_callback(
+        bot, ctx, repo, callback, text, keyboards.remove_confirmation(t, message.id)
+    )
 
 
 @router.callback_query(F.data.regexp(r"^msg:\d+:remove_yes$"))
@@ -60,4 +63,4 @@ async def on_remove_confirmed(
         )
     else:
         text = t("removed")
-    await show(bot, callback, text, keyboards.main_menu(t))
+    await show_on_callback(bot, ctx, repo, callback, text, keyboards.main_menu(t))

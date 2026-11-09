@@ -2,11 +2,6 @@
 
 from datetime import datetime
 
-from aiogram import Bot
-from aiogram.exceptions import TelegramBadRequest
-from aiogram.types import CallbackQuery, InlineKeyboardMarkup
-from aiogram.types import Message as TelegramMessage
-
 from reminder_bot.domain.parsing import MAX_TEXT_UTF16_UNITS
 from reminder_bot.domain.schedule import KYIV
 from reminder_bot.i18n import Translator
@@ -75,34 +70,3 @@ def message_details(t: Translator, message: Message, text: str) -> str:
 
 def fits_in_one_message(text: str) -> bool:
     return len(text.encode("utf-16-le")) // 2 <= MAX_TEXT_UTF16_UNITS
-
-
-async def show(
-    bot: Bot,
-    callback: CallbackQuery,
-    text: str,
-    reply_markup: InlineKeyboardMarkup | None = None,
-) -> None:
-    """Answer a button press by updating its message, or by sending a new one."""
-    await bot.answer_callback_query(callback.id)
-    message = callback.message
-    if isinstance(message, TelegramMessage):
-        try:
-            await bot.edit_message_text(
-                text=text,
-                chat_id=message.chat.id,
-                message_id=message.message_id,
-                reply_markup=reply_markup,
-            )
-        except TelegramBadRequest as error:
-            if "not modified" in str(error):
-                return
-        else:
-            return
-    # The original message can't be edited, so reply in the same chat and topic.
-    kwargs = {"chat_id": callback.from_user.id}
-    if message is not None:
-        kwargs["chat_id"] = message.chat.id
-        if isinstance(message, TelegramMessage) and message.is_topic_message:
-            kwargs["message_thread_id"] = message.message_thread_id
-    await bot.send_message(text=text, reply_markup=reply_markup, **kwargs)

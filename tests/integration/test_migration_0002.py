@@ -33,7 +33,7 @@ async def old_database(tmp_path: Path) -> Database:
 async def test_existing_rows_keep_their_ids_and_meaning(tmp_path: Path) -> None:
     db = await old_database(tmp_path)
     await db.migrate()
-    assert (await db.fetch_one("PRAGMA user_version"))[0] == 2
+    assert (await db.fetch_one("PRAGMA user_version"))[0] >= 2
 
     chat = await db.fetch_one("SELECT * FROM chats WHERE id = 7")
     assert chat["kind"] == "private"

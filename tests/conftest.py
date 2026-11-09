@@ -193,16 +193,19 @@ class FakeChat:
     def _chat(self, chat_type: str = "private") -> Chat:
         return Chat(id=self.user_id, type=chat_type)
 
-    async def send(self, text: str, chat_type: str = "private") -> None:
+    async def send(self, text: str, chat_type: str = "private") -> int:
+        """Send a message as the user, returning its ID."""
+        message_id = self.harness.next_id()
         await self.harness.feed(
             message=Message(
-                message_id=self.harness.next_id(),
+                message_id=message_id,
                 date=START,
                 chat=self._chat(chat_type),
                 from_user=self._user,
                 text=text,
             )
         )
+        return message_id
 
     async def send_photo(self) -> None:
         await self.harness.feed(
@@ -215,14 +218,17 @@ class FakeChat:
             )
         )
 
-    async def press(self, data: str) -> None:
+    async def press(self, data: str, on_message: int | None = None) -> None:
+        """Press a button, on the bot message `on_message` if given."""
         await self.harness.feed(
             callback_query=CallbackQuery(
                 id=str(self.harness.next_id()),
                 from_user=self._user,
                 chat_instance="test",
                 data=data,
-                message=Message(message_id=self.harness.next_id(), date=START, chat=self._chat()),
+                message=Message(
+                    message_id=on_message or self.harness.next_id(), date=START, chat=self._chat()
+                ),
             )
         )
 

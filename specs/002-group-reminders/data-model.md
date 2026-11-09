@@ -70,6 +70,10 @@ unreachable for 12 months --> deleted, with its reminders and deliveries
 
 Becoming reachable again runs the existing unblock rule: overdue recurring reminders skip ahead with no catch-up, and an overdue one-time reminder is sent once with a note (001 FR-013a).
 
+### Current screen (migration `0003_screen.sql`)
+
+`chats.screen_message_ids` (text, comma-separated, or empty) holds the IDs of the bot's current screen in a private chat: one message, or two when a reminder's text is too long to share a message with its details. Showing a new screen deletes these and stores the new IDs (FR-124). Groups leave it empty.
+
 ### Supergroup upgrade
 
 ```text
