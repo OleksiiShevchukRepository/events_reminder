@@ -61,7 +61,7 @@ Use the test bot in Telegram. Screens and rules are defined in [bot-interface.md
 | 2 | Create a one-time message | Confirmation shows Kyiv time; it arrives on time, once, and the list shows it as completed | US1, FR-011 |
 | 3 | Try date `31.02.2027`, time `25:70`, and a past date | Each is rejected and only that step repeats | FR-005, FR-005a |
 | 4 | Create an Every N days message starting today, a few minutes ahead, every 10 days | Sent today; next send is 10 days later | FR-004 |
-| 5 | Open `/list` with more than 5 messages | Active first, every message reachable by paging | US2 |
+| 5 | Open `/list` with more than 10 reminders | Active first, every message reachable by paging | US2 |
 | 6 | Edit a message's text and then its time | The next send uses the new values only | US3 |
 | 7 | Edit an Every N days message | Asks for both date and interval; cancelling part-way changes nothing | FR-016a, FR-018 |
 | 8 | Open a completed message | Only Remove and Back are offered | FR-011 |

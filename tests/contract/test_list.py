@@ -68,32 +68,32 @@ async def test_active_messages_come_first_by_next_send_then_completed(
     assert "Completed" in text
 
 
-async def test_paging_at_five_reaches_every_message(chat: FakeChat, harness: Harness) -> None:
-    for number in range(12):
+async def test_paging_at_ten_reaches_every_message(chat: FakeChat, harness: Harness) -> None:
+    for number in range(22):
         await add(harness, f"Msg{number:02d}", start=date(2026, 12, 1) + timedelta(days=number))
     await chat.send("/list")
     assert "page 1 of 3" in chat.last_text
     buttons = chat.last_buttons()
-    assert len([label for label in buttons if label.startswith(tuple("12345"))]) == 5
+    assert len([label for label in buttons if label[0].isdigit()]) == 10
     assert "Previous" not in buttons
     seen = set()
     for _ in range(3):
-        seen |= {f"Msg{n:02d}" for n in range(12) if f"Msg{n:02d}" in chat.last_text}
+        seen |= {f"Msg{n:02d}" for n in range(22) if f"Msg{n:02d}" in chat.last_text}
         buttons = chat.last_buttons()
         if "Next" in buttons:
             await chat.press(buttons["Next"])
-    assert seen == {f"Msg{n:02d}" for n in range(12)}
+    assert seen == {f"Msg{n:02d}" for n in range(22)}
     assert "page 3 of 3" in chat.last_text
     assert "Next" not in chat.last_buttons()
     assert "Previous" in chat.last_buttons()
 
 
 async def test_numbers_continue_across_pages(chat: FakeChat, harness: Harness) -> None:
-    for number in range(6):
+    for number in range(11):
         await add(harness, f"Msg{number}", start=date(2026, 12, 1) + timedelta(days=number))
     await chat.send("/list")
     await chat.press("page:1")
-    assert "6. Msg5" in chat.last_text
+    assert "11. Msg10" in chat.last_text
 
 
 async def test_page_beyond_the_end_shows_the_last_page(chat: FakeChat, harness: Harness) -> None:

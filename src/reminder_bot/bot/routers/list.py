@@ -22,7 +22,7 @@ from reminder_bot.storage.repositories import Repository, User
 
 router = Router(name="list")
 
-PAGE_SIZE = 5
+PAGE_SIZE = 10
 
 
 async def show_list(
