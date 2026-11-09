@@ -24,7 +24,7 @@ The core change is that reminders belong to a **chat** instead of a user. A priv
 
 **Project Type**: Long-running service (Telegram bot)
 
-**Performance Goals**: 99% of group reminders sent within 1 minute when up to 20 are due in one group at once (SC-102). 95% of actions answered within 2 seconds, including the membership check (001 SC-007)
+**Performance Goals**: 99% of group reminders sent within 1 minute when up to 15 are due in one group at once (SC-102). 95% of actions answered within 2 seconds, including the membership check (001 SC-007)
 
 **Constraints**: About 20 messages per minute per group from Telegram. Bots can delete messages only up to 48 hours old, and members' messages in groups only as admins. Telegram's default group privacy mode stays on, so the bot sees only commands and replies unless it's an admin. Ordinary group messages must never be stored or logged (FR-113)
 
@@ -114,8 +114,9 @@ tests/
 |---|---|
 | Storage shape | Rename `users` to `chats` rather than adding a separate groups table (research §1) |
 | Starting command | The member's `/new` message is deleted with the flow's answers, not only the answers |
-| Anonymous admins | Treated as one member named "Group admin", so they can use the bot |
-| Others pressing flow buttons | A short "This isn't your request" notice instead of complete silence, so they know why nothing happened |
+| Anonymous admins | Asked to turn off anonymity before starting a flow; they can still list reminders |
+| Others pressing flow buttons | A short "This isn't your request" notice, seen only by them (spec US1 scenario 4) |
+| Cancel in group questions | `/cancel` hint instead of a Cancel button on reply-prompt questions, because Telegram can't combine the two |
 | Live-only check | A reply prompt that targets one member after a button press must be confirmed on a real bot (research §4) |
 
 ## Complexity Tracking

@@ -33,6 +33,8 @@ Decisions for adding groups to the existing bot. The stack, delivery rules and s
 - The flow is keyed by member and chat (aiogram's default `USER_IN_CHAT`), so two members' flows never mix (FR-105).
 - A group message is taken as an answer only if it comes from a member whose flow is waiting for input. In a group where the bot isn't an admin, Telegram only delivers commands and replies to the bot, so that member must reply. Where the bot is an admin, Telegram delivers all messages, so the same rule lets that member type without replying (FR-104a) with no extra code.
 
+- Telegram allows only one kind of reply markup per message, so a question with the reply prompt can't also have the inline Cancel button. Group questions that need a typed answer end with the translated hint "Send /cancel to stop" instead. Questions answered with buttons keep the Cancel button, as in private chats.
+
 **Rationale**: This works with Telegram's default privacy mode, so groups change nothing. The member filter alone gives both behaviors the spec asks for.
 
 **To confirm on a real bot**: that a selective reply prompt with a text mention opens the reply box only for that member, including after a button press, when there is no member message to reply to.
@@ -61,7 +63,7 @@ Decisions for adding groups to the existing bot. The stack, delivery rules and s
 
 ## 8. Names for "who did what"
 
-**Decision**: Group reminders store `created_by_name` and `changed_by_name`: the member's display name (first and last name) at the moment of the action (FR-123). No user ID is stored. Private reminders leave both empty. Anonymous group admins, whom Telegram reports as the group itself, are named "Group admin" in the group's language.
+**Decision**: Group reminders store `created_by_name` and `changed_by_name`: the member's display name (first and last name) at the moment of the action (FR-123). No user ID is stored. Private reminders leave both empty. Anonymous group admins can't start flows: Telegram reports their messages as coming from the group but their button presses from their real account, so a flow can't be linked to one person. When one sends `/new`, `/language` or presses Edit or Remove, the bot asks them to turn off "Remain anonymous" and starts nothing. `/list` and `/help` still work.
 
 **Rationale**: The spec asks for names at the time of the action, so no lookup or member table is needed. Storing only a name keeps member data to a minimum.
 
@@ -82,7 +84,7 @@ Decisions for adding groups to the existing bot. The stack, delivery rules and s
 
 ## 11. Sending speed in groups
 
-**Decision**: The rate limiter spaces sends to each group 3 seconds apart, inside Telegram's limit of about 20 messages a minute per group. Private chats keep 1 second. 20 reminders due at once in one group finish within about 60 seconds (SC-102).
+**Decision**: The rate limiter spaces sends to each group 3 seconds apart, inside Telegram's limit of about 20 messages a minute per group. Private chats keep 1 second. The bot's replies in the group count towards the same limit, so the target is 15 reminders due together, which finish within about 42 seconds (SC-102). More are still all sent; a 429 response is retried as in 001.
 
 ## 12. Commands in groups
 

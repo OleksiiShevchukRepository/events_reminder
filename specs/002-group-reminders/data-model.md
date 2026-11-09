@@ -41,11 +41,13 @@ All 001 fields stay, with `user_id` renamed `chat_id`. New fields:
 | `created_by_name` | text or empty | Display name of the member who created it, groups only. Never changes |
 | `changed_by_name` | text or empty | Display name of the member who last updated it, groups only. Empty until the first update |
 
-Display name is the member's first name and last name, or "Group admin" (translated) for anonymous admins (research §8). Private reminders keep both fields empty (FR-123).
+Display name is the member's first name and last name. Anonymous admins can't create or change reminders, so they never need a name (research §8). Private reminders keep both fields empty (FR-123).
 
 ### Delivery record
 
 Unchanged. Deliveries follow their reminder through `message_id`, so a supergroup upgrade only changes `chats.id` and `scheduled_messages.chat_id`.
+
+The delivery status `blocked`, and the repository method `record_blocked`, keep their 001 names. For groups they mean the chat was unreachable when sending, not that a person blocked the bot.
 
 ## Validation
 

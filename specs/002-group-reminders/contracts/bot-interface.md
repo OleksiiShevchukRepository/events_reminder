@@ -30,6 +30,8 @@ The steps and their order are the same as in private chats.
 
 - **Questions**: Each question starts with a mention of the member, for example "Oleksii, send the text of your reminder.", and opens the reply box only for them (FR-104).
 - **Answers**: Accepted only from the member who started the flow. Where the bot isn't an admin, the member must reply to the question. Where it is, they may also type normally (FR-104a).
+- **Cancelling**: Questions that need a typed answer open the reply box, which can't be combined with buttons, so they end with "Send /cancel to stop" instead of a Cancel button. Questions answered with buttons, such as the recurrence choice, keep the Cancel button.
+- **Anonymous admins**: `/new`, `/language`, Edit and Remove get a request to turn off "Remain anonymous", and nothing starts. `/list` and `/help` work.
 - **Buttons**: Buttons in a flow's questions, such as recurrence choices and Cancel, work only for the member who started it. Anyone else gets a short "This isn't your request" notice, and the flow doesn't change (FR-105).
 - **Topics**: Questions and replies stay in the topic where the member started (FR-114).
 

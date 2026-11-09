@@ -78,6 +78,13 @@ Add the bot to group 2, which has topics.
 | 20 | Add the bot to a channel | Nothing is stored or sent | FR-117 |
 | 21 | A presses an old button of group 1 after leaving it (public group) | "This is no longer available" | FR-110a |
 
+## Cancelling and anonymous admins
+
+| # | Steps | Expected | Spec |
+|---|---|---|---|
+| 22 | In group 1, start `/new`, pick a recurrence, then reply `/cancel` to the text question | The text question says "Send /cancel to stop" and has no Cancel button; the flow ends and is cleaned up | FR-104 |
+| 23 | As a group admin with "Remain anonymous" on, send `/new`, then `/list` | `/new` asks to turn off anonymity and starts nothing; `/list` works | Edge Cases |
+
 The 12-month deletion, the 100-reminder limit per group and the 20-per-minute sending are covered by the automated tests.
 
 ## Deployment readiness
