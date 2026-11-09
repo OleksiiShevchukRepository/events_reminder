@@ -13,6 +13,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Chat, Message, TelegramObject, Update
 
 from reminder_bot.bot.context import ChatContext, display_name
+from reminder_bot.bot.screen import send_screen
 from reminder_bot.i18n import Translator
 from reminder_bot.storage.repositories import Repository
 
@@ -139,7 +140,7 @@ class ChatContextMiddleware(BaseMiddleware):
             thread_id=_thread_of(event),
             is_anonymous_admin=anonymous,
         )
-        if anonymous and await self._refuse_anonymous(bot, event, ctx, t, command):
+        if anonymous and await self._refuse_anonymous(bot, repo, event, ctx, t, command):
             return None
         data["ctx"] = ctx
         data["t"] = t
@@ -147,10 +148,15 @@ class ChatContextMiddleware(BaseMiddleware):
 
     @staticmethod
     async def _refuse_anonymous(
-        bot: Bot, event: TelegramObject, ctx: ChatContext, t: Translator, command: str | None
+        bot: Bot,
+        repo: Repository,
+        event: TelegramObject,
+        ctx: ChatContext,
+        t: Translator,
+        command: str | None,
     ) -> bool:
         if isinstance(event, Message) and command in _ANONYMOUS_BLOCKED_COMMANDS:
-            await bot.send_message(text=t("anonymous_admin"), **ctx.send_kwargs)
+            await send_screen(bot, ctx, repo, t("anonymous_admin"), trigger=event)
             return True
         if isinstance(event, CallbackQuery) and _ANONYMOUS_BLOCKED_BUTTONS.match(event.data or ""):
             await bot.answer_callback_query(event.id, t("anonymous_admin"), show_alert=True)

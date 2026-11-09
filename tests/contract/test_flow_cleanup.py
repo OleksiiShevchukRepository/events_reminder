@@ -50,15 +50,16 @@ async def test_without_delete_rights_the_bots_questions_still_go(harness: Harnes
 
 async def test_cancel_button_and_other_commands_clean_up_too(harness: Harness) -> None:
     group = harness.group()
-    await group.send("/new", ANNA)
+    first_new = await group.send("/new", ANNA)
     await group.press("rec:once", ANNA)
+    questions = set(harness.session.bot_message_ids)
     await group.press("flow:cancel", ANNA)
-    assert len(harness.session.deleted(GROUP)) == 2  # Bot questions, and the /new command.
+    assert {first_new} | questions <= harness.session.deleted_ids(GROUP)
     assert group.last_text == EN["cancelled"]
 
-    await group.send("/new", ANNA)
+    second_new = await group.send("/new", ANNA)
     await group.send("/help", ANNA)
-    assert len(harness.session.deleted(GROUP)) == 4
+    assert second_new in harness.session.deleted_ids(GROUP)
     assert group.last_text == EN["help_group"]
 
 

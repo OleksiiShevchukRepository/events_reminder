@@ -19,6 +19,7 @@ This feature extends the reminder bot defined in [001-telegram-reminder-bot](../
 - Q: What happens to the bot's questions and members' answers after a flow? → A: When a flow ends, the bot deletes its questions and the member's answers, leaving only the final result. In groups, deleting members' answers needs the bot to be an admin allowed to delete messages; without that, only the bot's own questions are deleted. The same clean-up applies in private chats.
 - Q: Should the group see who created or changed a reminder? → A: Yes. A group reminder's screen shows who created it and who last changed it, and each confirmation in the group names the member who saved, updated or removed it. Delivered reminders don't show names.
 - Q: Should a private chat keep the bot's older menus, lists and confirmations? → A: No. A private chat keeps only the bot's current screen: showing a new menu, list, help or result deletes the previous one and the command the person typed. Delivered reminders are kept. Groups are unchanged.
+- Q: Should groups clear older screens too? → A: Yes, the same as private chats, including the confirmations that name a member. A group has one screen, shared by all members.
 - Q: How do members answer the bot's questions in a group? → A: By replying to the bot's question, which works in every group. When the bot is an admin, the member who started the flow can also type their answer without replying.
 
 ## User Scenarios & Testing *(mandatory)*
@@ -160,14 +161,14 @@ The bot uses one language for each group, which members can change.
 **Who did what**
 
 - **FR-121**: Each group reminder MUST record which member created it and which member last changed it. Its screen in the group MUST show both.
-- **FR-122**: Every confirmation in a group of a saved, updated or removed reminder MUST name the member who did it. A removal confirmation MUST also include the removed reminder's text, so the group knows what was removed.
+- **FR-122**: Every confirmation in a group, until the next screen replaces it (FR-124), of a saved, updated or removed reminder MUST name the member who did it. A removal confirmation MUST also include the removed reminder's text, so the group knows what was removed.
 - **FR-123**: Members MUST be named by their Telegram display name at the time of the action. Delivered reminders and private chats MUST NOT show names.
 
 **Chat clean-up**
 
 - **FR-119**: When a create or update flow ends, whether saved, cancelled or ended by another command, the bot MUST delete the messages that flow produced: its own questions and error replies, and the member's answers. Only the final message, such as the confirmation or "Cancelled", MUST remain. This applies in both groups and private chats.
 - **FR-120**: In a group where the bot isn't allowed to delete other members' messages, it MUST still delete its own flow messages and leave members' answers. A message that can't be deleted MUST NOT stop the flow from saving or cancelling.
-- **FR-124**: In a private chat, the bot MUST keep only its current screen: its latest menu, list, help, reminder screen or result, such as "Saved." or "Cancelled.". Showing a new screen MUST delete the previous one and the command or text the person typed to get it. Pressing a button on an older message makes that message the current screen. Delivered reminders MUST NOT be deleted. This MUST still work after a restart. Groups keep all screens.
+- **FR-124**: In every chat, private or group, the bot MUST keep only its current screen: its latest menu, list, help, welcome, reminder screen or result, such as "Saved." or "Removed by Anna:". Showing a new screen MUST delete the previous one and the command or text that asked for it. A group has one screen, shared by all its members and topics. Deleting a member's command in a group needs the bot to be an admin allowed to delete messages; without that, the command stays and the bot's own messages are still deleted. Pressing a button on an older message makes that message the current screen. Delivered reminders MUST NOT be deleted. This MUST still work after a restart.
 
 **Private chats**
 
@@ -190,7 +191,7 @@ The bot uses one language for each group, which members can change.
 - **SC-105**: With two members creating reminders in the same group at once, their answers are never mixed up.
 - **SC-106**: All existing private chat checks from the 001 spec still pass, apart from the added clean-up.
 - **SC-107**: After a reminder is created where the bot is allowed to delete messages, only one message from that flow, the confirmation, remains in the chat.
-- **SC-108**: However many actions a person takes in a private chat, at most one screen from the bot remains, apart from delivered reminders and messages older than Telegram's 48-hour deletion limit.
+- **SC-108**: However many actions people take in a chat, at most one screen from the bot remains, apart from delivered reminders and messages older than Telegram's 48-hour deletion limit.
 
 ## Assumptions
 

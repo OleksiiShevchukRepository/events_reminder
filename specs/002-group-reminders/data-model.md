@@ -72,7 +72,7 @@ Becoming reachable again runs the existing unblock rule: overdue recurring remin
 
 ### Current screen (migration `0003_screen.sql`)
 
-`chats.screen_message_ids` (text, comma-separated, or empty) holds the IDs of the bot's current screen in a private chat: one message, or two when a reminder's text is too long to share a message with its details. Showing a new screen deletes these and stores the new IDs (FR-124). Groups leave it empty.
+`chats.screen_message_ids` (text, comma-separated, or empty) holds the IDs of the bot's current screen in a chat: one message, or two when a reminder's text is too long to share a message with its details. Showing a new screen deletes these and stores the new IDs (FR-124). A group has one screen, shared by all its members.
 
 ### Supergroup upgrade
 

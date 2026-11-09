@@ -16,6 +16,7 @@ from aiogram.exceptions import TelegramAPIError
 from aiogram.types import ChatMemberUpdated
 
 from reminder_bot.bot.middleware import GROUP_TYPES
+from reminder_bot.bot.screen import replace_screen
 from reminder_bot.clock import Clock
 from reminder_bot.i18n import Translator
 from reminder_bot.storage.repositories import Repository
@@ -77,6 +78,9 @@ async def _group(event: ChatMemberUpdated, bot: Bot, repo: Repository, clock: Cl
     if event.old_chat_member.status in _OUTSIDE:
         t = Translator(chat.language)
         try:
-            await bot.send_message(chat_id=chat_id, text=t("welcome_group"))
+            welcome = await bot.send_message(chat_id=chat_id, text=t("welcome_group"))
         except TelegramAPIError as error:
             logger.info("welcome_not_sent chat=%s error=%s", chat_id, type(error).__name__)
+            return
+        # The welcome is the group's screen until the next one replaces it (FR-124).
+        await replace_screen(bot, repo, chat_id, [welcome.message_id])

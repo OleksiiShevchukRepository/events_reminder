@@ -1,12 +1,16 @@
-"""Keeping one screen in a private chat (002 FR-124).
+"""Keeping one screen per chat, in private chats and groups (002 FR-124).
 
 A "screen" is the bot's latest menu, list, help, reminder screen or result, such as
-"Saved." or "Cancelled.". In a private chat, showing a new screen deletes the previous
-one and the command or text the person typed to get it, so the chat holds only the
-current screen and the delivered reminders. Delivered reminders are never screens.
+"Saved." or "Removed by Anna:". Showing a new screen deletes the previous one and the
+command or text that asked for it, so a chat holds only the current screen and the
+delivered reminders. Delivered reminders are never screens.
+
+A group has one screen, shared by all members and topics. The bot can always delete its
+own messages, but deleting a member's command in a group needs admin rights, so that's
+a separate request that's allowed to fail.
 
 The current screen's IDs are stored with the chat, so this still works after a restart.
-Telegram only deletes messages up to 48 hours old; older ones stay. Groups are unchanged.
+Telegram only deletes messages up to 48 hours old; older ones stay.
 """
 
 from aiogram import Bot
@@ -34,9 +38,7 @@ async def send_screen(
     sent = [(await bot.send_message(text=part, **ctx.send_kwargs)).message_id for part in before]
     message = await bot.send_message(text=text, reply_markup=reply_markup, **ctx.send_kwargs)
     sent.append(message.message_id)
-    if ctx.is_group:
-        return
-    await _replace(bot, ctx, repo, sent, trigger)
+    await replace_screen(bot, repo, ctx.chat_id, sent, trigger)
 
 
 async def show_on_callback(
@@ -66,23 +68,23 @@ async def show_on_callback(
             if "not modified" not in str(error):
                 await send_screen(bot, ctx, repo, text, reply_markup)
                 return
-        if not ctx.is_group:
-            await _replace(bot, ctx, repo, [message.message_id], None)
+        await replace_screen(bot, repo, ctx.chat_id, [message.message_id], None)
         return
     await send_screen(bot, ctx, repo, text, reply_markup)
 
 
-async def _replace(
+async def replace_screen(
     bot: Bot,
-    ctx: ChatContext,
     repo: Repository,
+    chat_id: int,
     current: list[int],
-    trigger: TelegramMessage | None,
+    trigger: TelegramMessage | None = None,
 ) -> None:
-    previous = await repo.get_screen(ctx.chat_id)
-    await repo.set_screen(ctx.chat_id, current)
+    """Record `current` as the chat's screen and delete the one it replaces."""
+    previous = await repo.get_screen(chat_id)
+    await repo.set_screen(chat_id, current)
     stale = [message_id for message_id in previous if message_id not in current]
-    if trigger is not None:
-        stale.append(trigger.message_id)
     if stale:
-        await delete_messages(bot, ctx.chat_id, stale, "screen")
+        await delete_messages(bot, chat_id, stale, "screen")
+    if trigger is not None:
+        await delete_messages(bot, chat_id, [trigger.message_id], "command")

@@ -39,7 +39,7 @@ Rules that span several files:
 - Bot messages are sent with no parse mode, so reminder text needs no escaping.
 - Handlers reply with `**ctx.send_kwargs`, never to a user ID, so replies reach the right chat and topic. The scheduler sends without a topic, so group reminders land in General.
 - Flow questions go through `flow.ask()`, members' answers through `flow.track_member()`, and every way a flow ends goes through `flow.end_flow()`, which deletes the flow's messages. A bare `state.clear()` that ends a flow is a bug.
-- Menus, lists, help and results ("Saved.", "Cancelled." and so on) go through `screen.send_screen()` or `screen.show_on_callback()`, never a bare `send_message`. In private chats these delete the previous screen and the typed command, so only one screen stays. Delivered reminders aren't screens.
+- Menus, lists, help and results ("Saved.", "Cancelled." and so on) go through `screen.send_screen()` or `screen.show_on_callback()`, never a bare `send_message`. These delete the previous screen and the typed command, so each chat, private or group, keeps one screen. Delivered reminders aren't screens.
 - In groups, the middleware drops everything except this bot's commands, button presses, and messages from a member with an active flow, before touching the database. Ordinary group chat must never be stored or logged.
 
 - Next sends are always calculated from a message's original start date, never from the previous send. Otherwise a monthly message on the 31st drifts to the 28th for good.

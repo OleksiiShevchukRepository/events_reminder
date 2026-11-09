@@ -1,4 +1,4 @@
-"""A private chat keeps only the bot's current screen, plus delivered reminders (002 FR-124)."""
+"""Each chat keeps only the bot's current screen, plus delivered reminders (002 FR-124)."""
 
 from datetime import UTC, date, datetime, time
 from pathlib import Path
@@ -137,10 +137,55 @@ async def test_delivered_reminders_are_never_deleted(
     assert reminder not in harness.session.deleted_ids(chat.user_id)
 
 
-async def test_groups_keep_their_screens(harness: Harness) -> None:
+ANNA = FakeGroup.member(11, "Anna")
+BORYS = FakeGroup.member(22, "Borys")
+
+
+async def test_groups_keep_one_screen_shared_by_all_members(harness: Harness) -> None:
     group = harness.group()
-    anna = FakeGroup.member(11, "Anna")
-    await group.send("/help", anna)
-    await group.send("/list", anna)
-    await group.send("/help", anna)
-    assert harness.session.deleted(group.chat_id) == []
+    help_command = await group.send("/help", ANNA)
+    help_screen = last_sent_id(harness)
+    list_command = await group.send("/list", BORYS)
+    listing = last_sent_id(harness)
+    deleted = harness.session.deleted_ids(group.chat_id)
+    assert {help_command, help_screen, list_command} <= deleted
+    assert await harness.repo.get_screen(group.chat_id) == [listing]
+
+
+async def test_named_group_results_are_replaced_too(harness: Harness) -> None:
+    group = harness.group()
+    await group.send("/new", ANNA)
+    await group.press("rec:once", ANNA)
+    await group.answer("Bins out", ANNA)
+    await group.answer("7.11.2026", ANNA)
+    await group.answer("19:00", ANNA)
+    saved = last_sent_id(harness)
+    assert group.last_text.startswith("Saved by Anna.")
+    await group.send("/list", BORYS)
+    assert saved in harness.session.deleted_ids(group.chat_id)
+
+
+async def test_without_admin_rights_members_commands_stay_but_screens_go(
+    harness: Harness,
+) -> None:
+    harness.session.can_delete_members_messages = False
+    group = harness.group()
+    help_command = await group.send("/help", ANNA)
+    help_screen = last_sent_id(harness)
+    await group.send("/list", ANNA)
+    deleted = harness.session.deleted_ids(group.chat_id)
+    assert help_screen in deleted
+    # The fake refuses any call that includes a member's message, as Telegram would.
+    refused = [
+        call for call in harness.session.deleted(group.chat_id) if help_command in call.message_ids
+    ]
+    assert refused and all(call.message_ids == [help_command] for call in refused)
+    assert group.last_text.startswith("Your reminders") or group.last_text == EN["list_empty"]
+
+
+async def test_the_welcome_is_replaced_by_the_first_screen(harness: Harness) -> None:
+    group = harness.group()
+    await group.bot_status("left", "member", by=ANNA)
+    welcome = last_sent_id(harness)
+    await group.send("/help", ANNA)
+    assert welcome in harness.session.deleted_ids(group.chat_id)

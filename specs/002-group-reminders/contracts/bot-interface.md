@@ -44,15 +44,16 @@ When a create or update flow ends, by saving, Cancel, `/cancel` or another comma
 
 Then it sends the final message, which stays (FR-119). In a group where the bot can't delete members' messages, members' messages stay and the bot's are still deleted (FR-120). Remove confirmations aren't flows; their prompt is edited into the result, as now.
 
-## One screen in private chats
+## One screen per chat
 
-In a private chat, the bot keeps only its current screen: the latest menu, list, help, reminder screen, language choice or result ("Saved.", "Updated.", "Removed.", "Cancelled.", "I didn't understand…"). When it shows a new one, it deletes the previous one and the command or text the person typed (FR-124).
+In every chat, private or group, the bot keeps only its current screen: the latest menu, list, help, reminder screen, language choice or result ("Saved.", "Updated.", "Removed.", "Cancelled.", "I didn't understand…"). When it shows a new one, it deletes the previous one and the command or text the person typed (FR-124).
 
 - A button press that edits its message in place makes that message the current screen. If it was an older message, the screen that was showing is deleted.
 - A reminder whose text is too long to show with its details is one screen of two messages, deleted together.
 - Delivered reminders and overdue notes are never deleted.
 - Messages older than 48 hours stay, because Telegram won't delete them.
-- Groups keep every screen.
+- A group has one screen, shared by all members and topics. The welcome message is the first one, and named results such as "Saved by Anna." are replaced like any other.
+- In a group where the bot isn't an admin allowed to delete messages, members' commands stay; the bot's own screens are still deleted.
 
 ## List and reminder screens in groups
 
