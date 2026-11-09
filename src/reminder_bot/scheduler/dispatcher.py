@@ -1,7 +1,8 @@
-"""Sends messages that are due.
+"""Sends reminders that are due, to private chats and groups.
 
 Each send is claimed in the database just before it's sent, which is what prevents
 duplicates (FR-010). See the Delivery section of research.md for the failure rules.
+Group reminders go to the group's General topic, with no names (002 FR-114, FR-123).
 """
 
 import asyncio
@@ -14,7 +15,9 @@ from aiogram import Bot
 from aiogram.exceptions import (
     RestartingTelegram,
     TelegramAPIError,
+    TelegramBadRequest,
     TelegramForbiddenError,
+    TelegramMigrateToChat,
     TelegramNetworkError,
     TelegramRetryAfter,
     TelegramServerError,
@@ -35,7 +38,26 @@ SHUTDOWN_GRACE_SECONDS = 25
 OVERDUE_NOTE_AFTER = timedelta(minutes=1)
 OVERALL_SPACING = timedelta(seconds=1 / 25)
 PER_CHAT_SPACING = timedelta(seconds=1)
+# Telegram allows about 20 messages a minute in one group (002 research.md §11).
+GROUP_SPACING = timedelta(seconds=3)
 _MAX_TRACKED_CHATS = 10_000
+
+
+# Telegram's wording when a group can't be posted in: the bot lacks the right to send,
+# isn't a member any more, or the chat is gone (002 FR-115).
+_GROUP_UNREACHABLE = (
+    "not enough rights",
+    "have no rights",
+    "chat_write_forbidden",
+    "chat not found",
+    "bot is not a member",
+    "need administrator rights",
+)
+
+
+def _group_unreachable(chat_id: int, error: TelegramBadRequest) -> bool:
+    message = str(error.message).lower()
+    return chat_id < 0 and any(phrase in message for phrase in _GROUP_UNREACHABLE)
 
 
 def _connection_never_made(error: TelegramNetworkError) -> bool:
@@ -65,7 +87,8 @@ class RateLimiter:
         self._overall_next = slot + OVERALL_SPACING
         if len(self._chat_next) > _MAX_TRACKED_CHATS:
             self._chat_next = {k: v for k, v in self._chat_next.items() if v > now}
-        self._chat_next[chat_id] = slot + PER_CHAT_SPACING
+        spacing = GROUP_SPACING if chat_id < 0 else PER_CHAT_SPACING
+        self._chat_next[chat_id] = slot + spacing
         wait = (slot - now).total_seconds()
         if wait > 0:
             await self._sleep(wait)
@@ -130,30 +153,30 @@ class MessageDispatcher:
         for due in await self.repo.due_messages(now, BATCH_SIZE):
             message_id = due.message_id
             self._start(
-                message_id, due.user_id, lambda m=message_id: self.repo.claim(m, self.clock.now())
+                message_id, due.chat_id, lambda m=message_id: self.repo.claim(m, self.clock.now())
             )
         for retry in await self.repo.due_retries(now, BATCH_SIZE):
             delivery_id = retry.delivery_id
             self._start(
                 retry.message_id,
-                retry.user_id,
+                retry.chat_id,
                 lambda d=delivery_id: self.repo.claim_retry(d, self.clock.now()),
             )
 
     def _start(
-        self, message_id: int, user_id: int, claim: Callable[[], Awaitable[Claim | None]]
+        self, message_id: int, chat_id: int, claim: Callable[[], Awaitable[Claim | None]]
     ) -> None:
         if message_id in self._in_flight or self._stopping.is_set():
             return
-        task = asyncio.create_task(self._deliver(user_id, claim))
+        task = asyncio.create_task(self._deliver(chat_id, claim))
         self._in_flight[message_id] = task
         task.add_done_callback(lambda _: self._in_flight.pop(message_id, None))
 
-    async def _deliver(self, user_id: int, claim: Callable[[], Awaitable[Claim | None]]) -> None:
+    async def _deliver(self, chat_id: int, claim: Callable[[], Awaitable[Claim | None]]) -> None:
         task = asyncio.current_task()
         self._waiting.add(task)
         try:
-            await self.limiter.acquire(user_id)
+            await self.limiter.acquire(chat_id)
         finally:
             self._waiting.discard(task)
         if self._stopping.is_set():
@@ -163,24 +186,29 @@ class MessageDispatcher:
             if claimed is not None:
                 await self._send(claimed)
         except Exception:
-            logger.exception("delivery_failed user=%s", user_id)
+            logger.exception("delivery_failed chat=%s", chat_id)
 
     async def _send(self, claim: Claim) -> None:
-        delivery, user = claim.delivery_id, claim.user_id
+        delivery, chat = claim.delivery_id, claim.chat_id
         try:
             if self.clock.now() - claim.scheduled_at > OVERDUE_NOTE_AFTER:
                 note = translate(
                     claim.language, "overdue_note", when=format_when(claim.scheduled_at)
                 )
-                await self.bot.send_message(user, note)
-                await self.limiter.acquire(user)
-            await self.bot.send_message(user, claim.text)
+                await self.bot.send_message(chat, note)
+                await self.limiter.acquire(chat)
+            await self.bot.send_message(chat, claim.text)
         except TelegramRetryAfter as error:
             self.limiter.pause(error.retry_after)
             await self._retry(claim, error, error.retry_after)
         except TelegramForbiddenError:
-            logger.info("send_blocked delivery=%s user=%s", delivery, user)
+            logger.info("send_blocked delivery=%s chat=%s", delivery, chat)
             await self.repo.record_blocked(claim, self.clock.now())
+        except TelegramMigrateToChat as error:
+            # The group became a supergroup with a new ID. Move it, then send there once.
+            await self.repo.move_chat(chat, error.migrate_to_chat_id)
+            logger.info("send_group_moved delivery=%s chat=%s", delivery, chat)
+            await self._retry(claim, error, retry_after=1)
         except (TelegramGatewayError, RestartingTelegram, TelegramUnauthorizedError) as error:
             # Rejected before delivery. Unauthorized means the token needs fixing.
             await self._retry(claim, error)
@@ -191,26 +219,37 @@ class MessageDispatcher:
                 await self._unknown(claim, error)
         except TelegramServerError as error:
             await self._unknown(claim, error)
+        except TelegramBadRequest as error:
+            if _group_unreachable(chat, error):
+                logger.info("send_group_unreachable delivery=%s chat=%s", delivery, chat)
+                await self.repo.record_blocked(claim, self.clock.now())
+            else:
+                await self._failed(claim, error)
         except TelegramAPIError as error:
-            name = type(error).__name__
-            logger.warning("send_failed delivery=%s user=%s error=%s", delivery, user, name)
-            await self.repo.record_failed(delivery, self.clock.now(), name)
+            await self._failed(claim, error)
         except Exception as error:
             await self._unknown(claim, error)
         else:
-            logger.info("send_ok delivery=%s user=%s", delivery, user)
+            logger.info("send_ok delivery=%s chat=%s", delivery, chat)
             await self.repo.record_sent(delivery, self.clock.now())
+
+    async def _failed(self, claim: Claim, error: Exception) -> None:
+        name = type(error).__name__
+        logger.warning(
+            "send_failed delivery=%s chat=%s error=%s", claim.delivery_id, claim.chat_id, name
+        )
+        await self.repo.record_failed(claim.delivery_id, self.clock.now(), name)
 
     async def _retry(self, claim: Claim, error: Exception, retry_after: int | None = None) -> None:
         name = type(error).__name__
         logger.warning(
-            "send_retry delivery=%s user=%s error=%s", claim.delivery_id, claim.user_id, name
+            "send_retry delivery=%s chat=%s error=%s", claim.delivery_id, claim.chat_id, name
         )
         await self.repo.record_retry(claim.delivery_id, self.clock.now(), name, retry_after)
 
     async def _unknown(self, claim: Claim, error: Exception) -> None:
         name = type(error).__name__
         logger.warning(
-            "send_unknown delivery=%s user=%s error=%s", claim.delivery_id, claim.user_id, name
+            "send_unknown delivery=%s chat=%s error=%s", claim.delivery_id, claim.chat_id, name
         )
         await self.repo.record_unknown(claim.delivery_id, self.clock.now(), name)

@@ -13,7 +13,7 @@ from reminder_bot.storage.repositories import Repository
 
 logger = logging.getLogger(__name__)
 
-BLOCKED_MONTHS = 12
+UNREACHABLE_MONTHS = 12
 DELIVERY_RETENTION = timedelta(days=90)
 BACKUP_DAYS_KEPT = 7
 _BACKUP_NAME = re.compile(r"reminders-(\d{8})\.db")
@@ -45,9 +45,12 @@ class Maintenance:
     async def run(self) -> None:
         now = self._clock.now()
         self._last_run = now
-        users = await self._repo.delete_users_blocked_before(months_before(now, BLOCKED_MONTHS))
+        # Private chats that blocked the bot, and groups it can't post in (002 FR-115).
+        chats = await self._repo.delete_chats_unreachable_before(
+            months_before(now, UNREACHABLE_MONTHS)
+        )
         records = await self._repo.delete_deliveries_before(now - DELIVERY_RETENTION)
-        logger.info("maintenance_cleanup users_deleted=%s deliveries_deleted=%s", users, records)
+        logger.info("maintenance_cleanup chats_deleted=%s deliveries_deleted=%s", chats, records)
         # Cleanup runs first, so deleted data leaves backups within a week.
         await self._back_up(now.date())
         self._prune_backups(now.date())

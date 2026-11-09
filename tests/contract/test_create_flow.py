@@ -245,7 +245,7 @@ async def test_old_recurrence_button_after_the_flow_is_stale(
 
 
 async def add_active(harness: Harness, user_id: int, count: int) -> None:
-    await harness.repo.get_or_create_user(user_id, "en", harness.clock.now())
+    await harness.repo.get_or_create_chat(user_id, "en", harness.clock.now())
     rule = Rule(Recurrence.DAILY, date(2026, 12, 1), time(9, 0))
     for _ in range(count):
         await harness.repo.create_message(user_id, "x", rule, harness.clock.now())

@@ -6,7 +6,7 @@ async def test_start_registers_a_new_user_and_explains_the_actions(
     chat: FakeChat, harness: Harness
 ) -> None:
     await chat.send("/start")
-    assert await harness.repo.get_user(chat.user_id) is not None
+    assert await harness.repo.get_chat(chat.user_id) is not None
     assert LANGUAGES["en"]["welcome"] in chat.texts()
     assert set(chat.last_buttons()) == {"New reminder", "My reminders", "Language"}
 
@@ -15,7 +15,7 @@ async def test_ukrainian_telegram_setting_gives_ukrainian(harness: Harness) -> N
     chat = harness.chat(language="uk")
     await chat.send("/start")
     assert LANGUAGES["uk"]["welcome"] in chat.texts()
-    assert (await harness.repo.get_user(chat.user_id)).language == "uk"
+    assert (await harness.repo.get_chat(chat.user_id)).language == "uk"
 
 
 async def test_any_other_language_gives_english(harness: Harness) -> None:
@@ -28,7 +28,7 @@ async def test_any_other_language_gives_english(harness: Harness) -> None:
 async def test_stored_language_is_not_overwritten_later(harness: Harness) -> None:
     await harness.chat(language="en").send("/start")
     await harness.chat(language="uk").send("/start")
-    assert (await harness.repo.get_user(1001)).language == "en"
+    assert (await harness.repo.get_chat(1001)).language == "en"
 
 
 async def test_help_mentions_kyiv_time(chat: FakeChat) -> None:
@@ -41,12 +41,12 @@ async def test_cancel_with_no_flow_changes_nothing(chat: FakeChat) -> None:
     assert chat.last_text == LANGUAGES["en"]["nothing_to_cancel"]
 
 
-async def test_group_updates_are_ignored_and_store_nothing(
+async def test_channel_updates_are_ignored_and_store_nothing(
     chat: FakeChat, harness: Harness
 ) -> None:
-    await chat.send("/start", chat_type="group")
-    await chat.send("/start", chat_type="supergroup")
-    assert await harness.repo.get_user(chat.user_id) is None
+    # Groups are served since 002; channels never are (002 FR-117).
+    await chat.send("/start", chat_type="channel")
+    assert await harness.repo.get_chat(chat.user_id) is None
     assert chat.texts() == []
 
 

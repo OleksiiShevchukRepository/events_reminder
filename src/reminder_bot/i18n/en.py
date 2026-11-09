@@ -97,6 +97,36 @@ TEXT = {
     # Language
     "language_prompt": "Choose your language.",
     "language_changed": "Language changed to English.",
+    # Groups (specs/002-group-reminders)
+    "welcome_group": (
+        "Hi! I post reminders in this group at the time you choose.\n\n"
+        "Send /new to create one and /list to see, change or remove them. Any member can "
+        "manage the group's reminders. They're posted here for everyone, in the General "
+        "topic if the group has topics.\n\n"
+        "Answer my questions by replying to them. Making me an admin allowed to delete "
+        "messages keeps the chat tidy and lets you answer without replying.\n\n"
+        "All times are Kyiv time."
+    ),
+    "help_group": (
+        "Here's what I can do in this group:\n\n"
+        "/new - create a reminder for the group\n"
+        "/list - see, change or remove the group's reminders\n"
+        "/language - change the language for the group\n"
+        "/cancel - stop what you're doing\n"
+        "/help - show this help\n\n"
+        "Answer my questions by replying to them. All times are Kyiv time."
+    ),
+    "cancel_hint": "Reply to this message. Send /cancel to stop.",
+    "not_your_request": "This isn't your request.",
+    "anonymous_admin": (
+        "Anonymous admins can't create, change or remove reminders. Turn off "
+        '"Remain anonymous" in your admin rights first. /list still works.'
+    ),
+    "saved_by": "Saved by {name}.\n\n{summary}",
+    "updated_by": "Updated by {name}.\n\n{summary}",
+    "removed_by": "Removed by {name}:\n\n{text}",
+    "created_by": "Created by: {name}",
+    "changed_by": "Last changed by: {name}",
     # Bot command menu
     "command_new": "Create a reminder",
     "command_list": "See your reminders",

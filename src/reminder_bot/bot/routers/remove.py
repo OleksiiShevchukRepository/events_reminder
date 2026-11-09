@@ -1,13 +1,18 @@
-"""Removing a message after confirmation (FR-019)."""
+"""Removing a reminder after confirmation (001 FR-019).
+
+In groups, the result names the member and repeats the removed text (002 FR-122).
+"""
 
 from aiogram import Bot, F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
 from reminder_bot.bot import keyboards
+from reminder_bot.bot.context import ChatContext
+from reminder_bot.bot.flow import end_flow
 from reminder_bot.bot.views import preview, show
 from reminder_bot.i18n import Translator
-from reminder_bot.storage.repositories import Repository, User
+from reminder_bot.storage.repositories import Repository
 
 router = Router(name="remove")
 
@@ -19,12 +24,12 @@ async def on_remove(
     callback: CallbackQuery,
     bot: Bot,
     state: FSMContext,
-    user: User,
+    ctx: ChatContext,
     t: Translator,
     repo: Repository,
 ) -> None:
-    await state.clear()
-    message = await repo.get_message(user.id, int(callback.data.split(":")[1]))
+    await end_flow(bot, state, ctx)
+    message = await repo.get_message(ctx.chat_id, int(callback.data.split(":")[1]))
     if message is None:
         await bot.answer_callback_query(callback.id, t("no_longer_available"))
         return
@@ -37,13 +42,22 @@ async def on_remove_confirmed(
     callback: CallbackQuery,
     bot: Bot,
     state: FSMContext,
-    user: User,
+    ctx: ChatContext,
     t: Translator,
     repo: Repository,
 ) -> None:
-    await state.clear()
-    removed = await repo.delete_message(user.id, int(callback.data.split(":")[1]))
-    if not removed:
+    await end_flow(bot, state, ctx)
+    message_id = int(callback.data.split(":")[1])
+    message = await repo.get_message(ctx.chat_id, message_id)
+    if message is None or not await repo.delete_message(ctx.chat_id, message_id):
         await bot.answer_callback_query(callback.id, t("no_longer_available"))
         return
-    await show(bot, callback, t("removed"), keyboards.main_menu(t))
+    if ctx.is_group:
+        text = t(
+            "removed_by",
+            name=ctx.member_name,
+            text=preview(message.text, _CONFIRMATION_PREVIEW_LENGTH),
+        )
+    else:
+        text = t("removed")
+    await show(bot, callback, text, keyboards.main_menu(t))

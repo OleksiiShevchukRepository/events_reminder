@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-This repo holds a Telegram reminder bot. The code and automated tests are written, but it hasn't been run against a real bot or deployed. See the unchecked tasks in `specs/001-telegram-reminder-bot/tasks.md`.
+This repo holds a Telegram reminder bot that works in private chats and in groups. The code and automated tests are written, but group support hasn't been checked on a real bot yet. See the unchecked tasks in `specs/001-telegram-reminder-bot/tasks.md` and `specs/002-group-reminders/tasks.md`.
 
 ## Stack and commands
 
@@ -26,7 +26,9 @@ Copy `.env.example` to `.env` to run the bot. Nothing loads `.env` automatically
 
 One process in `src/reminder_bot/` runs a Telegram long-polling handler (`bot/`) and a scheduler loop (`scheduler/`) over one SQLite file (`storage/`). `domain/` holds the pure date and input rules and depends on nothing else.
 
-Tests drive the real dispatcher through a fake Telegram session and a settable clock (`tests/conftest.py`), against a real temporary database.
+Tests drive the real dispatcher through a fake Telegram session and a settable clock (`tests/conftest.py`), against a real temporary database. `harness.chat()` plays a private chat and `harness.group()` a group with several members.
+
+Reminders belong to a **chat**: a private chat, whose ID is the person's Telegram ID, or a group, with a negative ID. The `chats` table holds both, and every query is scoped by `chat_id`. `bot/middleware.py` builds a `ChatContext` (`bot/context.py`): the chat, the member acting, and the topic they're in.
 
 Rules that span several files:
 
@@ -35,6 +37,9 @@ Rules that span several files:
 - Reminder text must never reach the logs. `aiosqlite` is held at WARNING in `storage/db.py` because its DEBUG output includes SQL values.
 - All bot text goes in both `i18n/en.py` and `i18n/uk.py`, with matching keys and placeholders.
 - Bot messages are sent with no parse mode, so reminder text needs no escaping.
+- Handlers reply with `**ctx.send_kwargs`, never to a user ID, so replies reach the right chat and topic. The scheduler sends without a topic, so group reminders land in General.
+- Flow questions go through `flow.ask()`, members' answers through `flow.track_member()`, and every way a flow ends goes through `flow.end_flow()`, which deletes the flow's messages. A bare `state.clear()` that ends a flow is a bug.
+- In groups, the middleware drops everything except this bot's commands, button presses, and messages from a member with an active flow, before touching the database. Ordinary group chat must never be stored or logged.
 
 - Next sends are always calculated from a message's original start date, never from the previous send. Otherwise a monthly message on the 31st drifts to the 28th for good.
 - The scheduler commits a delivery record and the schedule change before calling Telegram, and never resends an unknown outcome, because duplicates are forbidden (FR-010).
@@ -57,13 +62,12 @@ To confirm that Spec Kit can resolve the active feature:
 
 ## Active feature
 
-- Work happens on `main`, not on a feature branch. The scripts find the feature through `.specify/feature.json`, which points to `specs/002-group-reminders` (group support, planned and not yet built), so they fail without that file.
+- Work happens on `main`, not on a feature branch. The scripts find the feature through `.specify/feature.json`, which points to `specs/002-group-reminders` (group support), so they fail without that file.
 - The script output reports `BRANCH` as the feature's name, such as `002-group-reminders`. No such git branch exists.
-- `specs/001-telegram-reminder-bot` is the built bot. The 002 plan renames `users` to `chats` and `user_id` to `chat_id`, so reminders belong to a chat: a private chat or a group.
 
 ## Reading the spec
 
-`specs/001-telegram-reminder-bot/spec.md` is the source of truth for behavior.
+`specs/001-telegram-reminder-bot/spec.md` is the source of truth for behavior, and `specs/002-group-reminders/spec.md` for groups and flow clean-up. Where 002 changes 001, 002 wins.
 
 - The `Input` line quotes the original request and is out of date. Where they differ, the Clarifications section and the requirements take priority.
 - The original request's "custom date range" is called "custom interval" everywhere else: a start date plus every N days.

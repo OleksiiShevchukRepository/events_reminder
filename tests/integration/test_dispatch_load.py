@@ -25,7 +25,7 @@ async def test_peak_minute_is_all_sent_within_one_minute_of_simulated_time(
 
     rule = Rule(Recurrence.ONCE, date(2026, 11, 7), time(14, 45))
     for user_id in range(PEAK_PER_MINUTE):
-        await repo.get_or_create_user(user_id, "en", clock.now())
+        await repo.get_or_create_chat(user_id, "en", clock.now())
         await repo.create_message(user_id, f"Message {user_id}", rule, clock.now())
 
     dispatcher = MessageDispatcher(

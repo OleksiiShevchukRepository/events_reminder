@@ -1,4 +1,7 @@
-"""All SQL. Every user-facing query is scoped to the user who asked (FR-021)."""
+"""All SQL. Every user-facing query is scoped to the chat that asked (001 FR-021, 002 FR-107).
+
+A chat is a private chat, whose ID is the person's Telegram ID, or a group.
+"""
 
 import sqlite3
 from dataclasses import dataclass
@@ -13,7 +16,7 @@ _FIRST_RETRY_DELAY_SECONDS = 30
 
 
 class LimitReached(Exception):
-    """The user already has the maximum number of active messages."""
+    """The chat already has the maximum number of active messages."""
 
 
 class DateTimeInPast(Exception):
@@ -29,16 +32,21 @@ def from_db(value: str) -> datetime:
 
 
 @dataclass(frozen=True)
-class User:
+class Chat:
     id: int
     language: str
-    blocked_at: datetime | None
+    unreachable_at: datetime | None
+    kind: str = "private"
+
+    @property
+    def is_group(self) -> bool:
+        return self.kind == "group"
 
 
 @dataclass(frozen=True)
 class Message:
     id: int
-    user_id: int
+    chat_id: int
     text: str
     recurrence: Recurrence
     start_date: date
@@ -47,6 +55,8 @@ class Message:
     next_send_at: datetime | None
     status: str
     not_delivered: bool = False
+    created_by_name: str | None = None
+    changed_by_name: str | None = None
 
     @property
     def rule(self) -> Rule:
@@ -63,7 +73,7 @@ class Claim:
 
     delivery_id: int
     message_id: int
-    user_id: int
+    chat_id: int
     language: str
     text: str
     scheduled_at: datetime
@@ -72,28 +82,29 @@ class Claim:
 @dataclass(frozen=True)
 class DueMessage:
     message_id: int
-    user_id: int
+    chat_id: int
 
 
 @dataclass(frozen=True)
 class DueRetry:
     delivery_id: int
     message_id: int
-    user_id: int
+    chat_id: int
 
 
-def _user(row) -> User:
-    return User(
+def _chat(row) -> Chat:
+    return Chat(
         id=row["id"],
         language=row["language"],
-        blocked_at=from_db(row["blocked_at"]) if row["blocked_at"] else None,
+        unreachable_at=from_db(row["unreachable_at"]) if row["unreachable_at"] else None,
+        kind=row["kind"],
     )
 
 
 def _message(row, *, not_delivered: bool = False) -> Message:
     return Message(
         id=row["id"],
-        user_id=row["user_id"],
+        chat_id=row["chat_id"],
         text=row["text"],
         recurrence=Recurrence(row["recurrence"]),
         start_date=date.fromisoformat(row["start_date"]),
@@ -102,6 +113,8 @@ def _message(row, *, not_delivered: bool = False) -> Message:
         next_send_at=from_db(row["next_send_at"]) if row["next_send_at"] else None,
         status=row["status"],
         not_delivered=not_delivered,
+        created_by_name=row["created_by_name"],
+        changed_by_name=row["changed_by_name"],
     )
 
 
@@ -121,47 +134,53 @@ class Repository:
     def __init__(self, db: Database) -> None:
         self._db = db
 
-    # Users
+    # Chats
 
-    async def get_or_create_user(
-        self, user_id: int, telegram_language: str | None, now: datetime
-    ) -> User:
+    async def get_or_create_chat(
+        self,
+        chat_id: int,
+        telegram_language: str | None,
+        now: datetime,
+        kind: str = "private",
+    ) -> Chat:
+        """Load a chat, creating it with a language from the Telegram setting if it's new."""
         language = "uk" if (telegram_language or "").lower().split("-")[0] == "uk" else "en"
         async with self._db.transaction() as tx:
             await tx.execute(
-                "INSERT INTO users (id, language, created_at) VALUES (?, ?, ?)"
+                "INSERT INTO chats (id, kind, language, created_at) VALUES (?, ?, ?, ?)"
                 " ON CONFLICT (id) DO NOTHING",
-                (user_id, language, to_db(now)),
+                (chat_id, kind, language, to_db(now)),
             )
-            return _user(await tx.fetch_one("SELECT * FROM users WHERE id = ?", (user_id,)))
+            return _chat(await tx.fetch_one("SELECT * FROM chats WHERE id = ?", (chat_id,)))
 
-    async def get_user(self, user_id: int) -> User | None:
-        row = await self._db.fetch_one("SELECT * FROM users WHERE id = ?", (user_id,))
-        return _user(row) if row else None
+    async def get_chat(self, chat_id: int) -> Chat | None:
+        row = await self._db.fetch_one("SELECT * FROM chats WHERE id = ?", (chat_id,))
+        return _chat(row) if row else None
 
-    async def set_language(self, user_id: int, language: str) -> None:
-        await self._db.execute("UPDATE users SET language = ? WHERE id = ?", (language, user_id))
+    async def set_language(self, chat_id: int, language: str) -> None:
+        await self._db.execute("UPDATE chats SET language = ? WHERE id = ?", (language, chat_id))
 
-    async def set_blocked(self, user_id: int, now: datetime) -> None:
+    async def set_unreachable(self, chat_id: int, now: datetime) -> None:
         await self._db.execute(
-            "UPDATE users SET blocked_at = ? WHERE id = ? AND blocked_at IS NULL",
-            (to_db(now), user_id),
+            "UPDATE chats SET unreachable_at = ? WHERE id = ? AND unreachable_at IS NULL",
+            (to_db(now), chat_id),
         )
 
-    async def unblock(self, user_id: int, now: datetime) -> None:
-        """Clear a block. Recurring messages move ahead with no catch-up (FR-013a).
+    async def set_reachable(self, chat_id: int, now: datetime) -> None:
+        """Clear a block or an unreachable group. Recurring messages move ahead with no
+        catch-up (001 FR-013a, 002 FR-115).
 
         One-time messages keep their time, so an overdue one still goes out once.
         """
         async with self._db.transaction() as tx:
-            row = await tx.fetch_one("SELECT blocked_at FROM users WHERE id = ?", (user_id,))
-            if row is None or row["blocked_at"] is None:
+            row = await tx.fetch_one("SELECT unreachable_at FROM chats WHERE id = ?", (chat_id,))
+            if row is None or row["unreachable_at"] is None:
                 return
-            await tx.execute("UPDATE users SET blocked_at = NULL WHERE id = ?", (user_id,))
+            await tx.execute("UPDATE chats SET unreachable_at = NULL WHERE id = ?", (chat_id,))
             rows = await tx.fetch_all(
-                "SELECT * FROM scheduled_messages WHERE user_id = ? AND status = 'active'"
+                "SELECT * FROM scheduled_messages WHERE chat_id = ? AND status = 'active'"
                 " AND recurrence != 'once' AND next_send_at <= ?",
-                (user_id, to_db(now)),
+                (chat_id, to_db(now)),
             )
             for overdue in rows:
                 message = _message(overdue)
@@ -173,39 +192,47 @@ class Repository:
             await tx.execute(
                 "UPDATE deliveries SET status = 'blocked', next_attempt_at = NULL"
                 " WHERE status = 'retrying' AND message_id IN (SELECT id FROM scheduled_messages"
-                " WHERE user_id = ? AND recurrence != 'once')",
-                (user_id,),
+                " WHERE chat_id = ? AND recurrence != 'once')",
+                (chat_id,),
             )
 
     # Messages
 
-    async def count_active(self, user_id: int) -> int:
+    async def count_active(self, chat_id: int) -> int:
         row = await self._db.fetch_one(
-            "SELECT COUNT(*) FROM scheduled_messages WHERE user_id = ? AND status = 'active'",
-            (user_id,),
+            "SELECT COUNT(*) FROM scheduled_messages WHERE chat_id = ? AND status = 'active'",
+            (chat_id,),
         )
         return row[0]
 
-    async def create_message(self, user_id: int, text: str, rule: Rule, now: datetime) -> Message:
+    async def create_message(
+        self,
+        chat_id: int,
+        text: str,
+        rule: Rule,
+        now: datetime,
+        created_by_name: str | None = None,
+    ) -> Message:
         async with self._db.transaction() as tx:
             count = await tx.fetch_one(
-                "SELECT COUNT(*) FROM scheduled_messages WHERE user_id = ? AND status = 'active'",
-                (user_id,),
+                "SELECT COUNT(*) FROM scheduled_messages WHERE chat_id = ? AND status = 'active'",
+                (chat_id,),
             )
             if count[0] >= MAX_ACTIVE_MESSAGES:
                 raise LimitReached
             cursor = await tx.execute(
-                "INSERT INTO scheduled_messages (user_id, text, recurrence, start_date, send_time,"
-                " interval_days, next_send_at, status, created_at, updated_at)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)",
+                "INSERT INTO scheduled_messages (chat_id, text, recurrence, start_date, send_time,"
+                " interval_days, next_send_at, status, created_by_name, created_at, updated_at)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)",
                 (
-                    user_id,
+                    chat_id,
                     text,
                     rule.recurrence.value,
                     rule.start_date.isoformat(),
                     rule.send_time.strftime("%H:%M"),
                     rule.interval_days,
                     to_db(first_send(rule)),
+                    created_by_name,
                     to_db(now),
                     to_db(now),
                 ),
@@ -215,56 +242,67 @@ class Repository:
             )
             return _message(row)
 
-    async def get_message(self, user_id: int, message_id: int) -> Message | None:
+    async def get_message(self, chat_id: int, message_id: int) -> Message | None:
         row = await self._db.fetch_one(
             f"SELECT m.*, {_LAST_DELIVERY} FROM scheduled_messages m"
-            " WHERE m.id = ? AND m.user_id = ?",
-            (message_id, user_id),
+            " WHERE m.id = ? AND m.chat_id = ?",
+            (message_id, chat_id),
         )
         return _listed_message(row) if row else None
 
     async def list_messages(
-        self, user_id: int, page: int, page_size: int
+        self, chat_id: int, page: int, page_size: int
     ) -> tuple[list[Message], int]:
         """Active messages first by next send date, then completed ones (FR-015)."""
         total = await self._db.fetch_one(
-            "SELECT COUNT(*) FROM scheduled_messages WHERE user_id = ?", (user_id,)
+            "SELECT COUNT(*) FROM scheduled_messages WHERE chat_id = ?", (chat_id,)
         )
         rows = await self._db.fetch_all(
-            f"SELECT m.*, {_LAST_DELIVERY} FROM scheduled_messages m WHERE m.user_id = ?"
+            f"SELECT m.*, {_LAST_DELIVERY} FROM scheduled_messages m WHERE m.chat_id = ?"
             " ORDER BY m.status = 'completed', m.next_send_at IS NOT NULL, m.next_send_at, m.id"
             " LIMIT ? OFFSET ?",
-            (user_id, page_size, page * page_size),
+            (chat_id, page_size, page * page_size),
         )
         return [_listed_message(row) for row in rows], total[0]
 
-    async def delete_message(self, user_id: int, message_id: int) -> bool:
+    async def delete_message(self, chat_id: int, message_id: int) -> bool:
         async with self._db.transaction() as tx:
             cursor = await tx.execute(
-                "DELETE FROM scheduled_messages WHERE id = ? AND user_id = ?",
-                (message_id, user_id),
+                "DELETE FROM scheduled_messages WHERE id = ? AND chat_id = ?",
+                (message_id, chat_id),
             )
             return cursor.rowcount > 0
 
     async def update_text(
-        self, user_id: int, message_id: int, text: str, now: datetime
+        self,
+        chat_id: int,
+        message_id: int,
+        text: str,
+        now: datetime,
+        changed_by_name: str | None = None,
     ) -> Message | None:
         """Change only the text. The schedule stays as it is."""
         async with self._db.transaction() as tx:
             await tx.execute(
-                "UPDATE scheduled_messages SET text = ?, updated_at = ?"
-                " WHERE id = ? AND user_id = ? AND status = 'active'",
-                (text, to_db(now), message_id, user_id),
+                "UPDATE scheduled_messages SET text = ?, updated_at = ?,"
+                " changed_by_name = COALESCE(?, changed_by_name)"
+                " WHERE id = ? AND chat_id = ? AND status = 'active'",
+                (text, to_db(now), changed_by_name, message_id, chat_id),
             )
             row = await tx.fetch_one(
                 "SELECT * FROM scheduled_messages"
-                " WHERE id = ? AND user_id = ? AND status = 'active'",
-                (message_id, user_id),
+                " WHERE id = ? AND chat_id = ? AND status = 'active'",
+                (message_id, chat_id),
             )
             return _message(row) if row else None
 
     async def update_schedule(
-        self, user_id: int, message_id: int, rule: Rule, now: datetime
+        self,
+        chat_id: int,
+        message_id: int,
+        rule: Rule,
+        now: datetime,
+        changed_by_name: str | None = None,
     ) -> Message | None:
         """Replace a message's schedule. No send based on the old values can follow.
 
@@ -277,8 +315,9 @@ class Repository:
         async with self._db.transaction() as tx:
             cursor = await tx.execute(
                 "UPDATE scheduled_messages SET recurrence = ?, start_date = ?, send_time = ?,"
-                " interval_days = ?, next_send_at = ?, updated_at = ?"
-                " WHERE id = ? AND user_id = ? AND status = 'active'",
+                " interval_days = ?, next_send_at = ?, updated_at = ?,"
+                " changed_by_name = COALESCE(?, changed_by_name)"
+                " WHERE id = ? AND chat_id = ? AND status = 'active'",
                 (
                     rule.recurrence.value,
                     rule.start_date.isoformat(),
@@ -286,8 +325,9 @@ class Repository:
                     rule.interval_days,
                     to_db(next_send),
                     to_db(now),
+                    changed_by_name,
                     message_id,
-                    user_id,
+                    chat_id,
                 ),
             )
             if cursor.rowcount == 0:
@@ -304,25 +344,25 @@ class Repository:
 
     async def due_messages(self, now: datetime, limit: int) -> list[DueMessage]:
         rows = await self._db.fetch_all(
-            "SELECT m.id, m.user_id FROM scheduled_messages m JOIN users u ON u.id = m.user_id"
-            " WHERE m.status = 'active' AND m.next_send_at <= ? AND u.blocked_at IS NULL"
+            "SELECT m.id, m.chat_id FROM scheduled_messages m JOIN chats u ON u.id = m.chat_id"
+            " WHERE m.status = 'active' AND m.next_send_at <= ? AND u.unreachable_at IS NULL"
             " ORDER BY m.next_send_at, m.id LIMIT ?",
             (to_db(now), limit),
         )
-        return [DueMessage(row["id"], row["user_id"]) for row in rows]
+        return [DueMessage(row["id"], row["chat_id"]) for row in rows]
 
     async def claim(self, message_id: int, now: datetime) -> Claim | None:
         """Record a send and advance the schedule. Send only after this returns a claim."""
         async with self._db.transaction() as tx:
             row = await tx.fetch_one(
-                "SELECT m.*, u.language, u.blocked_at FROM scheduled_messages m"
-                " JOIN users u ON u.id = m.user_id WHERE m.id = ?",
+                "SELECT m.*, u.language, u.unreachable_at FROM scheduled_messages m"
+                " JOIN chats u ON u.id = m.chat_id WHERE m.id = ?",
                 (message_id,),
             )
             if (
                 row is None
                 or row["status"] != "active"
-                or row["blocked_at"] is not None
+                or row["unreachable_at"] is not None
                 or row["next_send_at"] is None
                 or row["next_send_at"] > to_db(now)
             ):
@@ -357,7 +397,7 @@ class Repository:
             return Claim(
                 delivery_id=cursor.lastrowid,
                 message_id=message_id,
-                user_id=message.user_id,
+                chat_id=message.chat_id,
                 language=row["language"],
                 text=message.text,
                 scheduled_at=message.next_send_at,
@@ -365,24 +405,24 @@ class Repository:
 
     async def due_retries(self, now: datetime, limit: int) -> list[DueRetry]:
         rows = await self._db.fetch_all(
-            "SELECT d.id, d.message_id, m.user_id FROM deliveries d"
+            "SELECT d.id, d.message_id, m.chat_id FROM deliveries d"
             " JOIN scheduled_messages m ON m.id = d.message_id"
-            " JOIN users u ON u.id = m.user_id"
-            " WHERE d.status = 'retrying' AND d.next_attempt_at <= ? AND u.blocked_at IS NULL"
+            " JOIN chats u ON u.id = m.chat_id"
+            " WHERE d.status = 'retrying' AND d.next_attempt_at <= ? AND u.unreachable_at IS NULL"
             " ORDER BY d.next_attempt_at, d.id LIMIT ?",
             (to_db(now), limit),
         )
-        return [DueRetry(row["id"], row["message_id"], row["user_id"]) for row in rows]
+        return [DueRetry(row["id"], row["message_id"], row["chat_id"]) for row in rows]
 
     async def claim_retry(self, delivery_id: int, now: datetime) -> Claim | None:
         """Take a retry for sending. It uses the message's current text."""
         async with self._db.transaction() as tx:
             row = await tx.fetch_one(
-                "SELECT d.scheduled_at, d.message_id, m.user_id, m.text, u.language"
+                "SELECT d.scheduled_at, d.message_id, m.chat_id, m.text, u.language"
                 " FROM deliveries d JOIN scheduled_messages m ON m.id = d.message_id"
-                " JOIN users u ON u.id = m.user_id"
+                " JOIN chats u ON u.id = m.chat_id"
                 " WHERE d.id = ? AND d.status = 'retrying' AND d.next_attempt_at <= ?"
-                " AND u.blocked_at IS NULL",
+                " AND u.unreachable_at IS NULL",
                 (delivery_id, to_db(now)),
             )
             if row is None:
@@ -395,7 +435,7 @@ class Repository:
             return Claim(
                 delivery_id=delivery_id,
                 message_id=row["message_id"],
-                user_id=row["user_id"],
+                chat_id=row["chat_id"],
                 language=row["language"],
                 text=row["text"],
                 scheduled_at=from_db(row["scheduled_at"]),
@@ -458,7 +498,8 @@ class Repository:
             )
 
     async def record_blocked(self, claim: Claim, now: datetime) -> None:
-        """Telegram says the user blocked the bot. A one-time message keeps its time."""
+        """Telegram says the chat can't be reached: a person blocked the bot, or the bot
+        can't post in a group. A one-time message keeps its time."""
         async with self._db.transaction() as tx:
             await tx.execute(
                 "UPDATE deliveries SET status = 'blocked', next_attempt_at = NULL WHERE id = ?",
@@ -471,8 +512,8 @@ class Repository:
                 (to_db(claim.scheduled_at), claim.message_id),
             )
             await tx.execute(
-                "UPDATE users SET blocked_at = ? WHERE id = ? AND blocked_at IS NULL",
-                (to_db(now), claim.user_id),
+                "UPDATE chats SET unreachable_at = ? WHERE id = ? AND unreachable_at IS NULL",
+                (to_db(now), claim.chat_id),
             )
 
     async def mark_leftover_sends_unknown(self, now: datetime) -> int:
@@ -485,10 +526,31 @@ class Repository:
 
     # Maintenance
 
-    async def delete_users_blocked_before(self, cutoff: datetime) -> int:
+    async def move_chat(self, old_id: int, new_id: int) -> bool:
+        """Move a group to the ID Telegram gave it when upgrading it (002 FR-116).
+
+        Deliveries follow their reminders, so nothing is sent twice. A repeat call for a
+        move that already happened does nothing.
+        """
+        async with self._db.transaction() as tx:
+            old = await tx.fetch_one("SELECT * FROM chats WHERE id = ?", (old_id,))
+            if old is None:
+                return False
+            await tx.execute(
+                "INSERT INTO chats (id, kind, language, unreachable_at, created_at)"
+                " VALUES (?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING",
+                (new_id, old["kind"], old["language"], old["unreachable_at"], old["created_at"]),
+            )
+            await tx.execute(
+                "UPDATE scheduled_messages SET chat_id = ? WHERE chat_id = ?", (new_id, old_id)
+            )
+            await tx.execute("DELETE FROM chats WHERE id = ?", (old_id,))
+            return True
+
+    async def delete_chats_unreachable_before(self, cutoff: datetime) -> int:
         async with self._db.transaction() as tx:
             cursor = await tx.execute(
-                "DELETE FROM users WHERE blocked_at IS NOT NULL AND blocked_at <= ?",
+                "DELETE FROM chats WHERE unreachable_at IS NOT NULL AND unreachable_at <= ?",
                 (to_db(cutoff),),
             )
             return cursor.rowcount

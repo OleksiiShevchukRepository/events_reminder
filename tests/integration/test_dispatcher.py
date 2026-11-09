@@ -64,13 +64,13 @@ async def make(
     user_id: int = USER,
     text: str = "Pay rent",
 ) -> Message:
-    await repo.get_or_create_user(user_id, "en", clock.now())
+    await repo.get_or_create_chat(user_id, "en", clock.now())
     rule = Rule(recurrence, start, SEND_TIME, interval_days)
     return await repo.create_message(user_id, text, rule, clock.now())
 
 
 async def get(repo: Repository, message: Message) -> Message:
-    return await repo.get_message(message.user_id, message.id)
+    return await repo.get_message(message.chat_id, message.id)
 
 
 async def deliveries(repo: Repository, message: Message) -> list:
@@ -191,7 +191,7 @@ async def test_note_when_more_than_one_minute_late(repo, clock, session, dispatc
 
 
 async def test_note_is_in_the_users_language(repo, clock, session, dispatcher) -> None:
-    await repo.get_or_create_user(USER, "uk", clock.now())
+    await repo.get_or_create_chat(USER, "uk", clock.now())
     await make(repo, clock)
     clock.set(DUE + timedelta(hours=1))
     await dispatcher.run_once()
@@ -200,7 +200,7 @@ async def test_note_is_in_the_users_language(repo, clock, session, dispatcher) -
 
 async def test_blocked_users_are_skipped(repo, clock, session, dispatcher) -> None:
     await make(repo, clock)
-    await repo.set_blocked(USER, clock.now())
+    await repo.set_unreachable(USER, clock.now())
     clock.set(DUE)
     await dispatcher.run_once()
     assert session.calls == []
@@ -397,7 +397,7 @@ async def test_403_blocks_the_user_and_one_time_message_keeps_its_time(
     clock.set(DUE)
     session.errors.append(forbidden)
     await dispatcher.run_once()
-    assert (await repo.get_user(USER)).blocked_at == DUE
+    assert (await repo.get_chat(USER)).unreachable_at == DUE
     stored = await get(repo, message)
     assert stored.status == "active"
     assert stored.next_send_at == DUE

@@ -55,7 +55,8 @@ class Database:
     async def close(self) -> None:
         await self._connection.close()
 
-    async def migrate(self) -> None:
+    async def migrate(self, up_to: int | None = None) -> None:
+        """Apply pending migrations, or only those numbered `up_to` or lower (for tests)."""
         directory = resources.files("reminder_bot.storage") / "migrations"
         scripts = sorted(
             (item for item in directory.iterdir() if item.name.endswith(".sql")),
@@ -66,7 +67,7 @@ class Database:
                 version = (await cursor.fetchone())[0]
             for script in scripts:
                 number = int(script.name.split("_", 1)[0])
-                if number <= version:
+                if number <= version or (up_to is not None and number > up_to):
                     continue
                 body = script.read_text(encoding="utf-8")
                 # The version is set in the same transaction as the changes it records.

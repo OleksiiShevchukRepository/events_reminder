@@ -70,3 +70,34 @@ async def test_no_reminder_text_or_token_in_logs(
     assert SECRET_TEXT not in caplog.text
     assert SECRET_TOKEN not in caplog.text
     assert "SECRET-TOKEN" not in caplog.text
+
+
+GROUP_CHATTER = "secret-family-gossip"
+
+
+async def test_group_messages_never_reach_logs_or_storage(
+    caplog, harness: Harness, repo: Repository
+) -> None:
+    """As an admin, the bot sees every group message. None may be logged or stored (002 FR-113)."""
+    caplog.set_level(logging.DEBUG)
+    group = harness.group()
+    anna = group.member(11, "Anna")
+    borys = group.member(22, "Borys")
+    await group.bot_status("left", "administrator", by=anna)
+
+    await group.send(f"{GROUP_CHATTER}-1", borys)
+    await group.send("/new", anna)
+    await group.send(f"{GROUP_CHATTER}-2", borys)
+    await group.press("rec:once", anna)
+    # Typed without replying, which an admin bot can see.
+    await group.send(f"{SECRET_TEXT}-group", anna)
+    await group.send(f"{GROUP_CHATTER}-3", borys)
+    await group.send("7.11.2026", anna)
+    await group.send("19:00", anna)
+
+    messages, total = await repo.list_messages(group.chat_id, 0, 10)
+    assert total == 1 and messages[0].text == f"{SECRET_TEXT}-group"
+    rows = await repo._db.fetch_all("SELECT text FROM scheduled_messages")
+    assert all(GROUP_CHATTER not in row["text"] for row in rows)
+    assert GROUP_CHATTER not in caplog.text
+    assert SECRET_TEXT not in caplog.text

@@ -1,5 +1,7 @@
 # Data Model: Telegram Reminder Bot
 
+> **Changed by 002**: `users` is now `chats` (with a `kind` of `private` or `group`), `blocked_at` is now `unreachable_at`, and `scheduled_messages.user_id` is now `chat_id`, with added `created_by_name` and `changed_by_name`. See the [002 data model](../002-group-reminders/data-model.md). The rules below still apply.
+
 All stored timestamps are UTC. Kyiv time is used only for input, display and schedule calculation. Foreign keys are enforced, and deletes cascade.
 
 ## users

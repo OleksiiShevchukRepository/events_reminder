@@ -1,5 +1,7 @@
 # Contract: Bot Interface
 
+> **Changed by 002**: Create and update flows now delete their questions and answers when they end, leaving only the final message (002 FR-119). Groups are supported. See the [002 bot interface](../../002-group-reminders/contracts/bot-interface.md).
+
 This is what users see and what the bot exchanges with Telegram. All visible text exists in English and Ukrainian (FR-023a). Exact wording lives in the translation files.
 
 ## Commands

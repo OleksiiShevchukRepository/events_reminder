@@ -13,7 +13,7 @@ async def add(
     user_id: int = USER,
     text: str = "x",
 ):
-    await harness.repo.get_or_create_user(user_id, "en", harness.clock.now())
+    await harness.repo.get_or_create_chat(user_id, "en", harness.clock.now())
     rule = Rule(recurrence, date(2026, 11, 7), time(14, 45))
     return await harness.repo.create_message(user_id, text, rule, harness.clock.now())
 

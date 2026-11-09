@@ -17,7 +17,7 @@ async def test_later_text_uses_the_chosen_language(chat: FakeChat, harness: Harn
     await chat.send("/language")
     await chat.press("lang:uk")
     assert LANGUAGES["uk"]["language_changed"] in chat.texts()
-    assert (await harness.repo.get_user(chat.user_id)).language == "uk"
+    assert (await harness.repo.get_chat(chat.user_id)).language == "uk"
     await chat.send("/help")
     assert LANGUAGES["uk"]["help"] in chat.texts()
 

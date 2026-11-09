@@ -15,7 +15,7 @@ async def add(
     user_id: int = USER,
     interval_days: int | None = None,
 ):
-    await harness.repo.get_or_create_user(user_id, "en", harness.clock.now())
+    await harness.repo.get_or_create_chat(user_id, "en", harness.clock.now())
     rule = Rule(recurrence, start, time(14, 45), interval_days)
     return await harness.repo.create_message(user_id, text, rule, harness.clock.now())
 

@@ -57,7 +57,7 @@ def summary(t: Translator, message: Message) -> str:
 
 
 def message_details(t: Translator, message: Message, text: str) -> str:
-    return t(
+    details = t(
         "screen",
         text=text,
         recurrence=recurrence_label(t, message),
@@ -65,6 +65,12 @@ def message_details(t: Translator, message: Message, text: str) -> str:
         next_send=next_send_label(t, message),
         status=status_label(t, message),
     )
+    # Only group reminders have names (002 FR-121, FR-123).
+    if message.created_by_name:
+        details += "\n" + t("created_by", name=message.created_by_name)
+    if message.changed_by_name:
+        details += "\n" + t("changed_by", name=message.changed_by_name)
+    return details
 
 
 def fits_in_one_message(text: str) -> bool:
@@ -93,4 +99,10 @@ async def show(
                 return
         else:
             return
-    await bot.send_message(callback.from_user.id, text, reply_markup=reply_markup)
+    # The original message can't be edited, so reply in the same chat and topic.
+    kwargs = {"chat_id": callback.from_user.id}
+    if message is not None:
+        kwargs["chat_id"] = message.chat.id
+        if isinstance(message, TelegramMessage) and message.is_topic_message:
+            kwargs["message_thread_id"] = message.message_thread_id
+    await bot.send_message(text=text, reply_markup=reply_markup, **kwargs)

@@ -1,4 +1,7 @@
-"""The message list and each message's own screen (FR-014, FR-015)."""
+"""The reminder list and each reminder's own screen (001 FR-014, FR-015; 002 FR-107).
+
+Lists are scoped to the chat they're asked in, so a group sees only its own reminders.
+"""
 
 import math
 
@@ -7,6 +10,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
 from reminder_bot.bot import keyboards
+from reminder_bot.bot.context import ChatContext
+from reminder_bot.bot.flow import end_flow
 from reminder_bot.bot.views import (
     SUMMARY_PREVIEW_LENGTH,
     fits_in_one_message,
@@ -18,7 +23,7 @@ from reminder_bot.bot.views import (
     status_label,
 )
 from reminder_bot.i18n import Translator
-from reminder_bot.storage.repositories import Repository, User
+from reminder_bot.storage.repositories import Repository
 
 router = Router(name="list")
 
@@ -27,17 +32,17 @@ PAGE_SIZE = 10
 
 async def show_list(
     bot: Bot,
-    user: User,
+    ctx: ChatContext,
     t: Translator,
     repo: Repository,
     page: int = 0,
     callback: CallbackQuery | None = None,
 ) -> None:
-    messages, total = await repo.list_messages(user.id, page, PAGE_SIZE)
+    messages, total = await repo.list_messages(ctx.chat_id, page, PAGE_SIZE)
     pages = math.ceil(total / PAGE_SIZE)
     if total and page >= pages:
         page = pages - 1
-        messages, total = await repo.list_messages(user.id, page, PAGE_SIZE)
+        messages, total = await repo.list_messages(ctx.chat_id, page, PAGE_SIZE)
 
     if total == 0:
         text, markup = t("list_empty"), keyboards.empty_list(t)
@@ -60,7 +65,7 @@ async def show_list(
         markup = keyboards.message_list(t, messages, first_number, page, pages)
 
     if callback is None:
-        await bot.send_message(user.id, text, reply_markup=markup)
+        await bot.send_message(text=text, reply_markup=markup, **ctx.send_kwargs)
     else:
         await show(bot, callback, text, markup)
 
@@ -70,12 +75,12 @@ async def on_menu_list(
     callback: CallbackQuery,
     bot: Bot,
     state: FSMContext,
-    user: User,
+    ctx: ChatContext,
     t: Translator,
     repo: Repository,
 ) -> None:
-    await state.clear()
-    await show_list(bot, user, t, repo, callback=callback)
+    await end_flow(bot, state, ctx)
+    await show_list(bot, ctx, t, repo, callback=callback)
 
 
 @router.callback_query(F.data.regexp(r"^page:\d+$"))
@@ -83,13 +88,13 @@ async def on_page(
     callback: CallbackQuery,
     bot: Bot,
     state: FSMContext,
-    user: User,
+    ctx: ChatContext,
     t: Translator,
     repo: Repository,
 ) -> None:
-    await state.clear()
+    await end_flow(bot, state, ctx)
     page = int(callback.data.removeprefix("page:"))
-    await show_list(bot, user, t, repo, page, callback)
+    await show_list(bot, ctx, t, repo, page, callback)
 
 
 @router.callback_query(F.data.regexp(r"^msg:\d+:open$"))
@@ -97,12 +102,12 @@ async def on_open(
     callback: CallbackQuery,
     bot: Bot,
     state: FSMContext,
-    user: User,
+    ctx: ChatContext,
     t: Translator,
     repo: Repository,
 ) -> None:
-    await state.clear()
-    message = await repo.get_message(user.id, int(callback.data.split(":")[1]))
+    await end_flow(bot, state, ctx)
+    message = await repo.get_message(ctx.chat_id, int(callback.data.split(":")[1]))
     if message is None:
         await bot.answer_callback_query(callback.id, t("no_longer_available"))
         return
@@ -114,6 +119,6 @@ async def on_open(
         return
     # The longest texts leave no room for details, so they get their own message first.
     await bot.answer_callback_query(callback.id)
-    await bot.send_message(user.id, message.text)
+    await bot.send_message(text=message.text, **ctx.send_kwargs)
     short = message_details(t, message, preview(message.text, SUMMARY_PREVIEW_LENGTH))
-    await bot.send_message(user.id, short, reply_markup=markup)
+    await bot.send_message(text=short, reply_markup=markup, **ctx.send_kwargs)

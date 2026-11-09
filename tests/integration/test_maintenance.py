@@ -20,9 +20,9 @@ def maintenance(db: Database, repo: Repository, clock: FixedClock, tmp_path: Pat
 
 
 async def blocked_user(repo: Repository) -> int:
-    await repo.get_or_create_user(USER, "en", BLOCKED_AT)
+    await repo.get_or_create_chat(USER, "en", BLOCKED_AT)
     message = await repo.create_message(USER, "x", RULE, BLOCKED_AT)
-    await repo.set_blocked(USER, BLOCKED_AT)
+    await repo.set_unreachable(USER, BLOCKED_AT)
     return message.id
 
 
@@ -37,7 +37,7 @@ async def test_user_is_kept_until_12_calendar_months_blocked(
     await blocked_user(repo)
     clock.set(datetime(2027, 3, 15, 9, 59, tzinfo=UTC))
     await maintenance.run()
-    assert await repo.get_user(USER) is not None
+    assert await repo.get_chat(USER) is not None
 
 
 async def test_user_and_their_data_are_deleted_after_12_calendar_months(
@@ -51,7 +51,7 @@ async def test_user_and_their_data_are_deleted_after_12_calendar_months(
     )
     clock.set(datetime(2027, 3, 15, 10, 0, tzinfo=UTC))
     await maintenance.run()
-    assert await repo.get_user(USER) is None
+    assert await repo.get_chat(USER) is None
     assert (await db.fetch_one("SELECT COUNT(*) FROM scheduled_messages"))[0] == 0
     assert (await db.fetch_one("SELECT COUNT(*) FROM deliveries"))[0] == 0
 
@@ -60,20 +60,20 @@ async def test_unblocking_resets_the_period(
     repo: Repository, clock: FixedClock, maintenance: Maintenance
 ) -> None:
     await blocked_user(repo)
-    await repo.unblock(USER, datetime(2026, 9, 1, tzinfo=UTC))
-    await repo.set_blocked(USER, datetime(2027, 1, 1, tzinfo=UTC))
+    await repo.set_reachable(USER, datetime(2026, 9, 1, tzinfo=UTC))
+    await repo.set_unreachable(USER, datetime(2027, 1, 1, tzinfo=UTC))
     clock.set(datetime(2027, 3, 16, tzinfo=UTC))
     await maintenance.run()
-    assert await repo.get_user(USER) is not None
+    assert await repo.get_chat(USER) is not None
 
 
 async def test_users_who_never_blocked_the_bot_are_kept(
     repo: Repository, clock: FixedClock, maintenance: Maintenance
 ) -> None:
-    await repo.get_or_create_user(USER, "en", BLOCKED_AT)
+    await repo.get_or_create_chat(USER, "en", BLOCKED_AT)
     clock.set(BLOCKED_AT + timedelta(days=5000))
     await maintenance.run()
-    assert await repo.get_user(USER) is not None
+    assert await repo.get_chat(USER) is not None
 
 
 async def insert_delivery(db: Database, message_id: int, day: int, status: str, created: str):
@@ -86,7 +86,7 @@ async def insert_delivery(db: Database, message_id: int, day: int, status: str, 
 async def test_delivery_records_are_deleted_after_90_days(
     db: Database, repo: Repository, clock: FixedClock, maintenance: Maintenance
 ) -> None:
-    await repo.get_or_create_user(USER, "en", clock.now())
+    await repo.get_or_create_chat(USER, "en", clock.now())
     message = await repo.create_message(USER, "x", RULE, clock.now())
     now = clock.now()
     old = (now - timedelta(days=90, seconds=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -102,12 +102,12 @@ async def test_delivery_records_are_deleted_after_90_days(
 async def test_backup_is_a_usable_copy(
     repo: Repository, clock: FixedClock, maintenance: Maintenance, tmp_path: Path
 ) -> None:
-    await repo.get_or_create_user(USER, "en", clock.now())
+    await repo.get_or_create_chat(USER, "en", clock.now())
     await maintenance.run()
     files = list((tmp_path / "backups").glob("*.db"))
     assert len(files) == 1
     copy = await Database.open(files[0])
-    assert (await copy.fetch_one("SELECT COUNT(*) FROM users"))[0] == 1
+    assert (await copy.fetch_one("SELECT COUNT(*) FROM chats"))[0] == 1
     await copy.close()
 
 

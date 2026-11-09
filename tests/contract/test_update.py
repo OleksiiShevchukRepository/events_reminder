@@ -23,7 +23,7 @@ async def add(
     user_id: int = USER,
     text: str = "Original",
 ):
-    await harness.repo.get_or_create_user(user_id, "en", harness.clock.now())
+    await harness.repo.get_or_create_chat(user_id, "en", harness.clock.now())
     rule = Rule(recurrence, start, time(14, 45), interval_days)
     return await harness.repo.create_message(user_id, text, rule, harness.clock.now())
 
@@ -138,7 +138,7 @@ async def test_invalid_date_leaves_the_message_unchanged(
 async def test_date_edit_to_today_after_the_time_has_passed_is_rejected(
     harness: Harness, chat: FakeChat
 ) -> None:
-    await harness.repo.get_or_create_user(USER, "en", harness.clock.now())
+    await harness.repo.get_or_create_chat(USER, "en", harness.clock.now())
     rule = Rule(Recurrence.WEEKLY, date(2026, 11, 7), time(9, 0))  # 09:00 is past today.
     message = await harness.repo.create_message(USER, "x", rule, harness.clock.now())
     await chat.press(f"msg:{message.id}:edit_date")
@@ -241,7 +241,7 @@ async def test_switch_to_only_once_asks_for_a_new_date(chat: FakeChat, harness: 
 async def test_switch_to_only_once_asks_for_a_time_if_the_old_one_has_passed(
     chat: FakeChat, harness: Harness
 ) -> None:
-    await harness.repo.get_or_create_user(USER, "en", harness.clock.now())
+    await harness.repo.get_or_create_chat(USER, "en", harness.clock.now())
     rule = Rule(Recurrence.DAILY, date(2026, 11, 7), time(9, 0))  # 09:00 is past today.
     message = await harness.repo.create_message(USER, "x", rule, harness.clock.now())
     await chat.press(f"msg:{message.id}:edit_rec")

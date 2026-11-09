@@ -6,7 +6,7 @@ import sys
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError
-from aiogram.types import BotCommand
+from aiogram.types import BotCommand, BotCommandScopeAllGroupChats, BotCommandScopeDefault
 
 from reminder_bot.bot.app import ALLOWED_UPDATES, build_dispatcher
 from reminder_bot.bot.session import GatewayAwareSession
@@ -25,14 +25,18 @@ _COMMANDS = ("new", "list", "language", "help", "cancel")
 
 
 async def _register_commands(bot: Bot) -> None:
-    """Fill Telegram's command menu. A failure here shouldn't stop the bot."""
+    """Fill Telegram's command menu, for private chats and groups (002 research §12).
+
+    A failure here shouldn't stop the bot.
+    """
     try:
-        for language, code in (("en", None), ("uk", "uk")):
-            commands = [
-                BotCommand(command=name, description=translate(language, f"command_{name}"))
-                for name in _COMMANDS
-            ]
-            await bot.set_my_commands(commands, language_code=code)
+        for scope in (BotCommandScopeDefault(), BotCommandScopeAllGroupChats()):
+            for language, code in (("en", None), ("uk", "uk")):
+                commands = [
+                    BotCommand(command=name, description=translate(language, f"command_{name}"))
+                    for name in _COMMANDS
+                ]
+                await bot.set_my_commands(commands, scope=scope, language_code=code)
     except TelegramAPIError as error:
         logger.warning("command_menu_not_set error=%s", type(error).__name__)
 
