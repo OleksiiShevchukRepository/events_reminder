@@ -2,18 +2,18 @@
 
 TEXT = {
     "welcome": (
-        "Hi! I send you scheduled messages at the time you choose.\n\n"
-        "You can create a message once or on a repeating schedule, see all your messages, "
+        "Hi! I send you reminders at the time you choose.\n\n"
+        "You can create a reminder once or on a repeating schedule, see all your reminders, "
         "and change or remove them.\n\n"
         "All times are Kyiv time."
     ),
     "help": (
         "Here's what I can do:\n\n"
-        "/new - create a scheduled message\n"
-        "/list - see, change or remove your messages\n"
+        "/new - create a reminder\n"
+        "/list - see, change or remove your reminders\n"
         "/language - change the language\n"
         "/cancel - stop what you're doing\n"
-        "/help - show this message\n\n"
+        "/help - show this help\n\n"
         "All times are Kyiv time."
     ),
     "menu_prompt": "What would you like to do?",
@@ -22,8 +22,8 @@ TEXT = {
     "nothing_to_cancel": "There's nothing to cancel.",
     "no_longer_available": "This is no longer available.",
     # Buttons
-    "btn_new": "New message",
-    "btn_list": "My messages",
+    "btn_new": "New reminder",
+    "btn_list": "My reminders",
     "btn_language": "Language",
     "btn_cancel": "Cancel",
     "btn_back": "Back",
@@ -46,19 +46,19 @@ TEXT = {
     "rec_interval": "Every N days",
     "rec_every_n_days": "Every {days} days",
     # Prompts
-    "prompt_text": "Send the text of your message.",
+    "prompt_text": "Send the text of your reminder.",
     "prompt_recurrence": "How often should it be sent?",
-    "prompt_interval": "How many days between messages? Send a whole number from 1 to 3650.",
-    "prompt_date": "On what date should the first message be sent? For example: 7.11.2026",
+    "prompt_interval": "How many days between reminders? Send a whole number from 1 to 3650.",
+    "prompt_date": "On what date should the first reminder be sent? For example: 7.11.2026",
     "prompt_date_once": "On what date should it be sent? For example: 7.11.2026",
     "prompt_time": "At what time? For example: 14:45 (Kyiv time)",
     "prompt_new_text": "Send the new text.",
     "prompt_new_recurrence": "Choose the new recurrence.",
     "prompt_new_date": "Send the new date. For example: 7.11.2026",
-    "prompt_new_interval": "Send the new number of days between messages, from 1 to 3650.",
+    "prompt_new_interval": "Send the new number of days between reminders, from 1 to 3650.",
     "prompt_new_time": "Send the new time. For example: 14:45 (Kyiv time)",
     # Errors
-    "error_text_empty": "Please send the message as text. It can't be empty.",
+    "error_text_empty": "Please send the reminder as text. It can't be empty.",
     "error_text_too_long": "That text is too long. The limit is 4,096 characters.",
     "error_date_invalid": "That isn't a valid date. Use day.month.year, for example 7.11.2026.",
     "error_date_too_far": "That date is too far ahead. The latest date is 31.12.2100.",
@@ -68,17 +68,17 @@ TEXT = {
     "error_interval_invalid": "Send a whole number from 1 to 3650.",
     "error_choose_button": "Please choose one of the buttons above.",
     "error_limit": (
-        "You've reached the limit of 100 active messages. Remove one to create another."
+        "You've reached the limit of 100 active reminders. Remove one to create another."
     ),
     # Confirmations
     "saved": "Saved.\n\n{summary}",
     "updated": "Updated.\n\n{summary}",
     "removed": "Removed.",
-    "remove_confirm": "Remove this message? This can't be undone.\n\n{text}",
+    "remove_confirm": "Remove this reminder? This can't be undone.\n\n{text}",
     "summary": "{text}\n\n{recurrence}, {time} (Kyiv time)\nNext send: {next_send}",
     # List
-    "list_empty": "You don't have any messages yet.",
-    "list_title": "Your messages (page {page} of {pages}):",
+    "list_empty": "You don't have any reminders yet.",
+    "list_title": "Your reminders (page {page} of {pages}):",
     "list_entry": "{number}. {preview}\n{recurrence}, {time} | Next: {next_send} | {status}",
     "screen": (
         "{text}\n\n"
@@ -93,13 +93,13 @@ TEXT = {
     "next_sending": "Sending",
     "next_none": "None",
     # Delivery
-    "overdue_note": "This message was due on {when} (Kyiv time):",
+    "overdue_note": "This reminder was due on {when} (Kyiv time):",
     # Language
     "language_prompt": "Choose your language.",
     "language_changed": "Language changed to English.",
     # Bot command menu
-    "command_new": "Create a scheduled message",
-    "command_list": "See your messages",
+    "command_new": "Create a reminder",
+    "command_list": "See your reminders",
     "command_language": "Change the language",
     "command_help": "Show what the bot can do",
     "command_cancel": "Stop what you're doing",

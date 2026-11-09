@@ -13,7 +13,7 @@ This is what users see and what the bot exchanges with Telegram. All visible tex
 | `/help` | Explains the available actions and that times are Kyiv time | FR-023 |
 | `/cancel` | Ends any flow in progress with no changes | FR-001a, FR-018 |
 
-The main menu offers **New message**, **My messages** and **Language** as buttons.
+The main menu offers **New reminder**, **My reminders** and **Language** as buttons.
 
 A command sent during a flow ends that flow without saving and runs the command, so nobody gets stuck. To use text beginning with `/` as a reminder, only recognized commands are treated this way.
 
@@ -38,7 +38,7 @@ Each step offers **Cancel**. An invalid value repeats only that step with an exp
 - Pages show 5 messages, with **Previous** and **Next** buttons, so every message is reachable.
 - Each entry shows a text preview, recurrence, time, next send date and status (FR-014). Selecting it opens a screen with the full text.
 - A one-time message being sent shows "Sending" as its next send date. A completed message whose send failed permanently shows "Not delivered" as its status (FR-011).
-- An empty list says so and offers **New message**.
+- An empty list says so and offers **New reminder**.
 
 ## Message screen
 

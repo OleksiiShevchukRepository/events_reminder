@@ -32,7 +32,7 @@ async def complete(harness: Harness, message, *, failed: bool = False) -> None:
 async def test_empty_list_says_so_and_offers_new_message(chat: FakeChat) -> None:
     await chat.send("/list")
     assert chat.last_text == EN["list_empty"]
-    assert chat.last_buttons() == {"New message": "menu:new"}
+    assert chat.last_buttons() == {"New reminder": "menu:new"}
 
 
 async def test_entry_shows_preview_recurrence_time_next_send_and_status(

@@ -8,7 +8,7 @@ async def test_start_registers_a_new_user_and_explains_the_actions(
     await chat.send("/start")
     assert await harness.repo.get_user(chat.user_id) is not None
     assert LANGUAGES["en"]["welcome"] in chat.texts()
-    assert set(chat.last_buttons()) == {"New message", "My messages", "Language"}
+    assert set(chat.last_buttons()) == {"New reminder", "My reminders", "Language"}
 
 
 async def test_ukrainian_telegram_setting_gives_ukrainian(harness: Harness) -> None:
