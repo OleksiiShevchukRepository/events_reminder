@@ -57,8 +57,9 @@ To confirm that Spec Kit can resolve the active feature:
 
 ## Active feature
 
-- Work happens on `main`, not on a feature branch. The scripts find the feature through `.specify/feature.json`, which points to `specs/001-telegram-reminder-bot`, so they fail without that file.
-- The script output reports `BRANCH` as `001-telegram-reminder-bot`. That is the feature's name, and no such git branch exists.
+- Work happens on `main`, not on a feature branch. The scripts find the feature through `.specify/feature.json`, which points to `specs/002-group-reminders` (group support, planned and not yet built), so they fail without that file.
+- The script output reports `BRANCH` as the feature's name, such as `002-group-reminders`. No such git branch exists.
+- `specs/001-telegram-reminder-bot` is the built bot. The 002 plan renames `users` to `chats` and `user_id` to `chat_id`, so reminders belong to a chat: a private chat or a group.
 
 ## Reading the spec
 
